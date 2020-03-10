@@ -38,11 +38,15 @@
 }
 
 - (DDPVideoModel *)videoModel {
+#if !DDPAPPTYPEISMAC
     if (_videoModel == nil) {
         _videoModel = [[DDPSMBVideoModel alloc] initWithFileURL:self.fileURL];
         _videoModel.file = self;
     }
     return _videoModel;
+#else
+    return nil;
+#endif
 }
 
 - (TOSMBSessionFile *)sessionFile {

@@ -7,58 +7,18 @@
 //
 
 #import "DDPBaseNetManager.h"
-#import <AFNetworking.h>
+#import <AFNetworking/AFNetworking.h>
+#import <AFNetworking/AFNetworkActivityIndicatorManager.h>
 #import "DDPHTTPRequestSerializer.h"
 #import "DDPHTTPResponseSerializer.h"
-//#import "DDPHTTPNoParseResponseSerializer.h"
-//#import "DDPHTTPNoParseRequestSerializer.h"
-//#import "DDPHTTPXMLResponseSerializer.h"
 
 #define ddp_HTTP_TIME_OUT 10
 
 @interface DDPBaseNetManager ()
-//<DDPHTTPSerializerDelegate>
-//@property (strong, nonatomic) AFHTTPSessionManager *JSONSessionManager;
-//@property (strong, nonatomic) AFHTTPSessionManager *XMLSessionManager;
 @property (strong, nonatomic) AFHTTPSessionManager *HTTPSessionManager;
+@property (strong, nonatomic) AFHTTPSessionManager *defaultHTTPSessionManager;
 @property (strong, nonatomic) YYReachability *reachability;
-//@property (strong, nonatomic) NSMutableDictionary <NSString *, NSMutableArray <NSNumber *>*>*URLDic;
 @end
-
-/**
- *  转换错误信息为可读
- *
- *  @param error 错误
- *
- *  @return 可读的错误
- */
-static NSError *ddp_humanReadableError(NSError *error) {
-    return error;
-    
-    
-//    if (error == nil) return nil;
-//    
-//    NSHTTPURLResponse *response = error.userInfo[AFNetworkingOperationFailingURLResponseErrorKey];
-//    NSUInteger statusCode = response.statusCode;
-//    NSMutableString *str = [[NSMutableString alloc] initWithFormat:@"%lu ", (unsigned long)statusCode];
-//    if (statusCode == 400) {
-//        [str appendString:@"客户端发送的请求有错误"];
-//    }
-//    else if (statusCode == 401) {
-//        [str appendString:@"客户端无权限或token验证失败"];
-//    }
-//    else if (statusCode == 404) {
-//        [str appendString:@"未找到API"];
-//    }
-//    else if (statusCode == 500) {
-//        [str appendString:@"服务器处理请求时发生错误"];
-//    }
-//    
-//    JHLog(@"%@", str);
-//    
-//    NSError *aError = [NSError errorWithDomain:@"网络错误" code:statusCode userInfo:@{NSLocalizedDescriptionKey : @"网络错误"}];
-//    return aError;
-}
 
 static NSString *ddp_jsonString(id obj) {
     if ([obj isKindOfClass:[NSData class]]) {
@@ -91,21 +51,17 @@ static DDPRequestParameters *ddp_requestParameters(DDPBaseNetManagerSerializerTy
     NSHashTable *_observers;
 }
 
-+ (instancetype)shareNetManager {
-    static dispatch_once_t onceToken;
-    static DDPBaseNetManager *manager = nil;
-    dispatch_once(&onceToken, ^{
-        manager = [[DDPBaseNetManager alloc] init];
-    });
-    return manager;
-}
 
 - (instancetype)init {
     if (self = [super init]) {
         _observers = [[NSHashTable alloc] initWithOptions:NSPointerFunctionsWeakMemory|NSPointerFunctionsObjectPointerPersonality capacity:0];
+        //开启网络的指示符
+        [[AFNetworkActivityIndicatorManager sharedManager] setEnabled:YES];
     }
     return self;
 }
+
+
 
 #pragma mark -
 
@@ -121,24 +77,20 @@ static DDPRequestParameters *ddp_requestParameters(DDPBaseNetManagerSerializerTy
     }
     
     AFHTTPSessionManager *manager = self.HTTPSessionManager;
-    return [manager GET:path parameters:ddp_requestParameters(serializerType, parameters) progress:nil success:^(NSURLSessionDataTask * _Nonnull task, NSDictionary * _Nullable responseObject) {
-        JHLog(@"GET 请求成功：%@ \n\n%@", task.originalRequest.URL, ddp_jsonString(responseObject));
+    return [manager GET:path parameters:ddp_requestParameters(serializerType, parameters) headers:nil progress:nil success:^(NSURLSessionDataTask * _Nonnull task, NSDictionary * _Nullable responseObject) {
+        LOG_DEBUG(DDPLogModuleNetwork, @"GET 请求成功：%@ \n\n%@", task.originalRequest.URL, ddp_jsonString(responseObject));
         if (completionHandler) {
             completionHandler([[DDPResponse alloc] initWithResponseObject:responseObject error:nil]);
         }
     } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
-        JHLog(@"GET 请求失败：%@ \n\n%@", task.originalRequest.URL, error);
-        NSError *temErr = ddp_humanReadableError(error);
+        LOG_DEBUG(DDPLogModuleNetwork, @"GET 请求失败：%@ \n\n%@", task.originalRequest.URL, error);
         if (completionHandler) {
-            completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:temErr]);
+            completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:error]);
         }
     }];
 }
 
-- (NSURLSessionDataTask *)POSTWithPath:(NSString *)path
-                        serializerType:(DDPBaseNetManagerSerializerType)serializerType
-                            parameters:(id)parameters
-                     completionHandler:(DDPResponseCompletionAction)completionHandler {
+- (NSURLSessionDataTask *)POSTWithPath:(NSString *)path serializerType:(DDPBaseNetManagerSerializerType)serializerType parameters:(id)parameters completionHandler:(DDPResponseCompletionAction)completionHandler {
     if (path.length == 0) {
         if (completionHandler) {
             completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:DDPErrorWithCode(DDPErrorCodeParameterNoCompletion)]);
@@ -148,17 +100,16 @@ static DDPRequestParameters *ddp_requestParameters(DDPBaseNetManagerSerializerTy
     
     AFHTTPSessionManager *manager = self.HTTPSessionManager;
     
-    return [manager POST:path parameters:ddp_requestParameters(serializerType, parameters) progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-        JHLog(@"POST 请求成功：%@\n\n%@", path, ddp_jsonString(responseObject));
+    return [manager POST:path parameters:ddp_requestParameters(serializerType, parameters) headers:nil progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        LOG_DEBUG(DDPLogModuleNetwork, @"POST 请求成功：%@\n\n%@\n\n%@", path, ddp_jsonString(parameters) , ddp_jsonString(responseObject));
         
         if (completionHandler) {
             completionHandler([[DDPResponse alloc] initWithResponseObject:responseObject error:nil]);
         }
     } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
-        JHLog(@"POST 请求失败：%@ \n\n %@ \n\n%@", path, parameters, error);
-        
+        LOG_DEBUG(DDPLogModuleNetwork, @"POST 请求失败：%@ \n\n %@ \n\n%@", path, ddp_jsonString(parameters), error);
         if (completionHandler) {
-            completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:ddp_humanReadableError(error)]);
+            completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:error]);
         }
     }];
 }
@@ -176,17 +127,17 @@ static DDPRequestParameters *ddp_requestParameters(DDPBaseNetManagerSerializerTy
     
     AFHTTPSessionManager *manager = self.HTTPSessionManager;
     
-    return [manager DELETE:path parameters:ddp_requestParameters(serializerType, parameters) success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-        JHLog(@"DELETE 请求成功：%@\n\n%@", path, ddp_jsonString(responseObject));
+    return [manager DELETE:path parameters:ddp_requestParameters(serializerType, parameters) headers:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        LOG_DEBUG(DDPLogModuleNetwork, @"DELETE 请求成功：%@\n\n%@", path, ddp_jsonString(responseObject));
         
         if (completionHandler) {
             completionHandler([[DDPResponse alloc] initWithResponseObject:responseObject error:nil]);
         }
     } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
-        JHLog(@"DELETE 请求失败：%@ \n\n %@ \n\n%@", path, parameters, error);
+        LOG_DEBUG(DDPLogModuleNetwork, @"DELETE 请求失败：%@ \n\n %@ \n\n%@", path, parameters, error);
         
         if (completionHandler) {
-            completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:ddp_humanReadableError(error)]);
+            completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:error]);
         }
     }];
 }
@@ -203,20 +154,38 @@ static DDPRequestParameters *ddp_requestParameters(DDPBaseNetManagerSerializerTy
     
     AFHTTPSessionManager *manager = self.HTTPSessionManager;
     
-    return [manager PUT:path parameters:ddp_requestParameters(serializerType, parameters) success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-        JHLog(@"PUT 请求成功：%@\n\n%@", path, ddp_jsonString(responseObject));
+    return [manager PUT:path parameters:ddp_requestParameters(serializerType, parameters) headers:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        LOG_DEBUG(DDPLogModuleNetwork, @"PUT 请求成功：%@\n\n%@", path, ddp_jsonString(responseObject));
         
         if (completionHandler) {
             completionHandler([[DDPResponse alloc] initWithResponseObject:responseObject error:nil]);
         }
     } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
-        JHLog(@"PUT 请求失败：%@ \n\n %@ \n\n%@", path, parameters, error);
+        LOG_DEBUG(DDPLogModuleNetwork, @"PUT 请求失败：%@ \n\n %@ \n\n%@", path, parameters, error);
         
         if (completionHandler) {
-            completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:ddp_humanReadableError(error)]);
+            completionHandler([[DDPResponse alloc] initWithResponseObject:nil error:error]);
         }
     }];
 }
+
+#if DDPAPPTYPEISMAC
+- (NSURLSessionDownloadTask *)downloadTaskWithPath:(NSString *)path
+                                          progress:(void (^)(NSProgress *downloadProgress))downloadProgressBlock
+                                       destination:(NSURL *(^)(NSURL *targetPath, NSURLResponse *response))destination
+                                 completionHandler:(void (^)(NSURLResponse *response, NSURL *filePath, NSError *error))completionHandler {
+    
+    AFHTTPSessionManager *manager = self.defaultHTTPSessionManager;
+    NSURLSessionDownloadTask *task = [manager downloadTaskWithRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:path]] progress:downloadProgressBlock destination:destination completionHandler:^(NSURLResponse * _Nonnull response, NSURL * _Nullable filePath, NSError * _Nullable error) {
+        LOG_DEBUG(DDPLogModuleNetwork, @"下载%@：%@", error ? @"失败" : @"成功", path);
+        completionHandler(response, filePath, error);
+    }];
+    
+    [task resume];
+    
+    return task;
+}
+#endif
 
 - (void)batchGETWithPaths:(NSArray <NSString *>*)paths
            serializerType:(DDPBaseNetManagerSerializerType)serializerType
@@ -246,7 +215,7 @@ static DDPRequestParameters *ddp_requestParameters(DDPBaseNetManagerSerializerTy
         
         dispatch_group_enter(group);
         
-        NSURLSessionDataTask *dataTask = [manager GET:obj parameters:ddp_requestParameters(serializerType, nil) progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        NSURLSessionDataTask *dataTask = [manager GET:obj parameters:ddp_requestParameters(serializerType, nil) headers:nil progress:nil success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
             currentIndex++;
             
             if (editResponseBlock) {
@@ -312,8 +281,10 @@ static DDPRequestParameters *ddp_requestParameters(DDPBaseNetManagerSerializerTy
         
         _HTTPSessionManager.requestSerializer = ({
             DDPHTTPRequestSerializer *serializer = [DDPHTTPRequestSerializer serializer];
+            [serializer setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
             serializer;
         });
+        
         NSDictionary *dic = ddp_defaultHTTPHeaderField();
         [dic enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull obj, BOOL * _Nonnull stop) {
             [_HTTPSessionManager.requestSerializer setValue:obj forHTTPHeaderField:key];
@@ -321,6 +292,19 @@ static DDPRequestParameters *ddp_requestParameters(DDPBaseNetManagerSerializerTy
         _HTTPSessionManager.requestSerializer.timeoutInterval = ddp_HTTP_TIME_OUT;
     }
     return _HTTPSessionManager;
+}
+
+- (AFHTTPSessionManager *)defaultHTTPSessionManager {
+    if (_defaultHTTPSessionManager == nil) {
+        _defaultHTTPSessionManager = [AFHTTPSessionManager manager];
+        _defaultHTTPSessionManager.requestSerializer.timeoutInterval = ddp_HTTP_TIME_OUT;
+        [_defaultHTTPSessionManager.requestSerializer setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
+        NSDictionary *dic = ddp_defaultHTTPHeaderField();
+        [dic enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull obj, BOOL * _Nonnull stop) {
+            [_defaultHTTPSessionManager.requestSerializer setValue:obj forHTTPHeaderField:key];
+        }];
+    }
+    return _defaultHTTPSessionManager;
 }
 
 - (YYReachability *)reachability {

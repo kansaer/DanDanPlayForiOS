@@ -8,8 +8,7 @@
 
 #import "DDPFile.h"
 
-@implementation DDPFile
-{
+@implementation DDPFile {
     DDPVideoModel *_videoModel;
 }
 

@@ -8,77 +8,11 @@
 
 #import <UIKit/UIKit.h>
 #import "DDPMacroDefinition.h"
+#import "DDPConstant.h"
 
-@class DDPFile, DDPLinkFile;
+@class DDPFile, DDPLinkFile, DDPVideoModel, DDPDanmakuCollection;
 
-/**
- 弹幕类型
-
- - DDPDanmakuTypeUnknow: 未知类型
- - DDPDanmakuTypeOfficial: 官方弹幕
- - DDPDanmakuTypeBiliBili: b站弹幕
- - DDPDanmakuTypeAcfun: a站弹幕
- - DDPDanmakuTypeByUser: 用户发送的弹幕
- */
-typedef NS_ENUM(NSUInteger, DDPDanmakuType) {
-    DDPDanmakuTypeUnknow = 1 << 0,
-    DDPDanmakuTypeOfficial = 1 << 1,
-    DDPDanmakuTypeBiliBili = 1 << 2,
-    DDPDanmakuTypeAcfun = 1 << 3,
-    DDPDanmakuTypeByUser = 1 << 4,
-};
-
-
-/**
- 节目类型
-
- - DDPEpisodeTypeAnimate: TV动画
- - DDPEpisodeTypeAnimateSpecial: TV动画特别放送
- - DDPEpisodeTypeOVA: OVA
- - DDPEpisodeTypePalgantong: 剧场版
- - DDPEpisodeTypeMV: 音乐视频（MV）
- - DDPEpisodeTypeWeb: 网络放送
- - DDPEpisodeTypeOther: 其他分类
- - DDPEpisodeTypeThreeDMovie: 三次元电影
- - DDPEpisodeTypeThreeDTVPlayOrChineseAnimate: 三次元电视剧或国产动画
- - DDPEpisodeTypeUnknow: 未知（尚未分类）
- */
-typedef NS_ENUM(NSInteger, DDPEpisodeType) {
-    DDPEpisodeTypeAnimate = 1,
-    DDPEpisodeTypeAnimateSpecial,
-    DDPEpisodeTypeOVA,
-    DDPEpisodeTypePalgantong,
-    DDPEpisodeTypeMV,
-    DDPEpisodeTypeWeb,
-    DDPEpisodeTypeOther,
-    DDPEpisodeTypeThreeDMovie = 10,
-    DDPEpisodeTypeThreeDTVPlayOrChineseAnimate = 20,
-    DDPEpisodeTypeUnknow = 99,
-};
-
-
-/**
- 错误类型
-
- - DDPErrorCodeParameterNoCompletion: 参数不完整
- - DDPErrorCodeCreatDownloadTaskFail: 下载失败
- - DDPErrorCodeLoginFail: 登录失败
- - DDPErrorCodeRegisterFail: 注册失败
- - DDPErrorCodeUpdateUserNameFail: 更新用户名失败
- - DDPErrorCodeUpdateUserPasswordFail: 更新用户密码失败
- - DDPErrorCodeBindingFail: 绑定失败
- - DDPErrorCodeObjectExist: 对象存在
- */
-typedef NS_ENUM(NSUInteger, DDPErrorCode) {
-    DDPErrorCodeParameterNoCompletion = 10000,
-    DDPErrorCodeCreatDownloadTaskFail,
-    DDPErrorCodeLoginFail,
-    DDPErrorCodeRegisterFail,
-    DDPErrorCodeUpdateUserNameFail,
-    DDPErrorCodeUpdateUserPasswordFail,
-    DDPErrorCodeBindingFail,
-    DDPErrorCodeObjectExist,
-};
+typedef void(^DDPFastMatchAction)(DDPDanmakuCollection *collection, NSError *error);
 
 CG_INLINE BOOL ddp_isPad() {
     return [UIDevice currentDevice].isPad;
@@ -106,6 +40,12 @@ CG_INLINE NSURL *ddp_linkImageURL(NSString *ip, NSString *hash) {
     return [NSURL URLWithString:[NSString stringWithFormat:@"%@/%@/image/%@", ip, LINK_API_INDEX, hash]];
 }
 
+CG_INLINE NSURL *ddp_linkVideoURL(NSString *ip, NSString *hash) {
+    if (hash.length == 0) return nil;
+    
+    return [NSURL URLWithString:[NSString stringWithFormat:@"%@/%@/stream/id/%@", ip, LINK_API_INDEX, hash]];
+}
+
 CG_INLINE NSString *ddp_taskDownloadPath() {
     return [UIApplication sharedApplication].documentsPath;
 }
@@ -131,7 +71,7 @@ CG_INLINE uint32_t ddp_danmakuColor(UIColor *color) {
  @param type 类型
  @return 字符串
  */
-UIKIT_EXTERN NSString *DDPEpisodeTypeToString(DDPEpisodeType type);
+//UIKIT_EXTERN NSString *DDPEpisodeTypeToString(DDPEpisodeType type);
 
 /**
  根据错误编号生成错误对象
@@ -224,14 +164,31 @@ UIKIT_EXTERN BOOL ddp_isRootFile(DDPFile *file);
  */
 UIKIT_EXTERN BOOL ddp_isRootPath(NSString *path);
 
-@interface DDPMethod : NSObject
 
 /**
- 请求域名
+ 是否为小屏幕设备
 
- @return 请求域名
+ @return 是否为小屏幕设备
  */
-+ (NSString *)apiDomain;
+UIKIT_EXTERN BOOL ddp_isSmallDevice(void);
+
+
+/**
+ 是否为横屏
+
+ @return 是否为横屏
+ */
+UIKIT_EXTERN BOOL ddp_isLandscape(void);
+
+
+/**
+ 是否安装了国内常见app
+
+ @return 是否安装了国内常见app
+ */
+UIKIT_EXTERN BOOL ddp_isChatAppInstall(void);
+
+@interface DDPMethod : NSObject
 
 /**
  请求路径
@@ -240,4 +197,42 @@ UIKIT_EXTERN BOOL ddp_isRootPath(NSString *path);
  */
 + (NSString *)apiPath;
 
+/**
+ v2请求路径
+
+ @return v2请求路径
+ */
++ (NSString *)apiNewPath;
+
+/// 检查更新地址
++ (NSString *)checkVersionPath;
+
+
+/// 匹配文件/文件夹
+/// @param file 文件
++ (void)matchFile:(DDPFile *)file
+       completion:(DDPFastMatchAction)completion;
+
+/// 匹配视频模型
+/// @param model 视频模型
+/// @param completion 完成回调
++ (void)matchVideoModel:(DDPVideoModel *)model
+             completion:(DDPFastMatchAction)completion;
+
+/// 匹配视频模型
+/// @param model 视频模型
+/// @param useDefaultMode 使用默认处理方式
+/// @param completion 完成回调
++ (void)matchVideoModel:(DDPVideoModel *)model
+         useDefaultMode:(BOOL)useDefaultMode
+             completion:(DDPFastMatchAction)completion;
+
+#if DDPAPPTYPEISMAC
+///  发送匹配成功消息
+/// @param model 消息
++ (void)sendMatchedModelMessage:(DDPVideoModel *)model;
+
+/// 同步全量配置消息
++ (void)sendConfigMessage;
+#endif
 @end

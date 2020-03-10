@@ -7,15 +7,16 @@
 //
 
 #import "DDPDanmakuFilterDetailViewController.h"
-#import <UITextView+Placeholder.h>
 #import <IQKeyboardManager.h>
 #import <YYKeyboardManager.h>
 #import "DDPEdgeButton.h"
 #import "DDPEdgeTextField.h"
+#import "Masonry+DDPTools.h"
+#import "DDPBaseTextView.h"
 
 @interface DDPDanmakuFilterDetailViewController ()<YYKeyboardObserver, UITextViewDelegate, UITextFieldDelegate>
 @property (strong, nonatomic) DDPEdgeTextField *nameTextField;
-@property (strong, nonatomic) UITextView *textView;
+@property (strong, nonatomic) DDPBaseTextView *textView;
 @end
 
 @implementation DDPDanmakuFilterDetailViewController
@@ -55,21 +56,21 @@
     }
     
     [self.nameTextField mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.top.left.mas_equalTo(10);
-        make.right.mas_offset(-10);
+        make.top.mas_equalTo(10);
+        make.leading.equalTo(self.view.ddp_safeLeading).mas_offset(10);;
+        make.trailing.equalTo(self.view.ddp_safeTrailing).mas_offset(-10);
     }];
     
     [self.textView mas_makeConstraints:^(MASConstraintMaker *make) {
         make.top.equalTo(self.nameTextField.mas_bottom).mas_offset(10);
-        make.left.mas_equalTo(self.nameTextField);
-        make.bottom.right.mas_offset(-10);
+        make.leading.trailing.equalTo(self.nameTextField);
+        make.bottom.equalTo(self.view.ddp_safeBottom).mas_offset(-10);
     }];
 }
 
 #pragma mark - YYKeyboardObserver
 - (void)keyboardChangedWithTransition:(YYKeyboardTransition)transition {
-    NSLog(@"%d %d", transition.toVisible, transition.fromVisible);
-    
+    LOG_DEBUG(DDPLogModuleMine, @"键盘参数 toVisible: %d fromVisible: %d", transition.toVisible, transition.fromVisible);
     if (transition.toVisible) {
         float offset = transition.toFrame.size.height;
         [UIView animateWithDuration:transition.animationDuration delay:0 options:transition.animationOption animations:^{
@@ -145,6 +146,8 @@
         _nameTextField.inset = CGSizeMake(0, 16);
         _nameTextField.backgroundColor = DDPRGBColor(240, 240, 240);
         _nameTextField.text = _model.name.length ? _model.name : FILTER_DEFAULT_NAME;
+        [_nameTextField setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
+        [_nameTextField setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
         if (_model.identity > 0) {
             //自己创建的才允许改名字
             _nameTextField.userInteractionEnabled = YES;
@@ -163,12 +166,12 @@
     return _nameTextField;
 }
 
-- (UITextView *)textView {
+- (DDPBaseTextView *)textView {
     if (_textView == nil) {
-        _textView = [[UITextView alloc] init];
+        _textView = [[DDPBaseTextView alloc] init];
         _textView.font = [UIFont ddp_normalSizeFont];
-        _textView.placeholderLabel.font = [UIFont ddp_normalSizeFont];
-        _textView.placeholder = @"请输入屏蔽内容";
+        NSAttributedString *str = [[NSAttributedString alloc] initWithString:@"请输入屏蔽内容" attributes:@{NSFontAttributeName : [UIFont ddp_normalSizeFont]}];
+        _textView.attributedPlaceholder = str;
         _textView.text = self.model.content;
         _textView.returnKeyType = UIReturnKeyDone;
         _textView.delegate = self;

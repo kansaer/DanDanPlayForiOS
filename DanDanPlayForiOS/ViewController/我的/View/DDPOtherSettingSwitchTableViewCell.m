@@ -19,20 +19,24 @@
         
         self.selectionStyle = UITableViewCellSelectionStyleNone;
         
-        [self.titleLabel mas_makeConstraints:^(MASConstraintMaker *make) {
-            make.top.left.mas_offset(10);
-        }];
+        let holdView = [[UIStackView alloc] init];
+        holdView.spacing = 5;
+        holdView.axis = UILayoutConstraintAxisVertical;
+        [holdView addArrangedSubview:self.titleLabel];
+        [holdView addArrangedSubview:self.detailLabel];
+
+        [self.contentView addSubview:holdView];
+        [self.contentView addSubview:self.aSwitch];
         
-        [self.detailLabel mas_makeConstraints:^(MASConstraintMaker *make) {
-            make.top.equalTo(self.titleLabel.mas_bottom).mas_offset(10);
-            make.left.mas_offset(10);
-            make.bottom.mas_offset(-10);
+        [holdView mas_makeConstraints:^(MASConstraintMaker *make) {
+            make.leading.mas_equalTo(10);
+            make.centerY.mas_equalTo(self.contentView);
         }];
         
         [self.aSwitch mas_makeConstraints:^(MASConstraintMaker *make) {
             make.centerY.mas_equalTo(0);
-            make.right.mas_offset(-10);
-            make.left.equalTo(self.titleLabel.mas_right).mas_offset(10);
+            make.trailing.mas_offset(-10);
+            make.leading.mas_greaterThanOrEqualTo(holdView.mas_trailing).offset(10);
         }];
     }
     return self;
@@ -56,7 +60,7 @@
     if (_titleLabel == nil) {
         _titleLabel = [[UILabel alloc] init];
         _titleLabel.font = [UIFont ddp_normalSizeFont];
-        [self.contentView addSubview:_titleLabel];
+        _titleLabel.textColor = [UIColor blackColor];
     }
     return _titleLabel;
 }
@@ -66,7 +70,6 @@
         _detailLabel = [[UILabel alloc] init];
         _detailLabel.font = [UIFont ddp_smallSizeFont];
         _detailLabel.textColor = [UIColor lightGrayColor];
-        [self.contentView addSubview:_detailLabel];
     }
     return _detailLabel;
 }
@@ -75,7 +78,6 @@
     if (_aSwitch == nil) {
         _aSwitch = [[UISwitch alloc] init];
         [_aSwitch addTarget:self action:@selector(touchSwitch:) forControlEvents:UIControlEventValueChanged];
-        [self.contentView addSubview:_aSwitch];
     }
     return _aSwitch;
 }

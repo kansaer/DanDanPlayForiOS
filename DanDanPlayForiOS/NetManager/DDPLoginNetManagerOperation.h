@@ -9,7 +9,7 @@
 #import "DDPBaseNetManager.h"
 #import "DDPUser.h"
 #import "DDPRegisterRequest.h"
-#import "DDPRegisterResponse.h"
+#import "DDPRegisterResult.h"
 
 @interface DDPLoginNetManagerOperation : NSObject
 
@@ -22,10 +22,14 @@
  @param completionHandler 回调
  @return 任务
  */
-+ (NSURLSessionDataTask *)loginWithSource:(DDPUserType)source
++ (NSURLSessionDataTask *)loginWithSource:(DDPUserLoginType)source
                                    userId:(NSString *)userId
                                     token:(NSString *)token
                         completionHandler:(DDP_ENTITY_RESPONSE_ACTION(DDPUser))completionHandler;
+
+/// 刷新token、长时间未登录会返回失败
+/// @param completionHandler 完成回调
++ (NSURLSessionDataTask *)renewWithCompletionHandler:(DDP_ENTITY_RESPONSE_ACTION(DDPUser))completionHandler;
 
 /**
  注册
@@ -34,8 +38,8 @@
  @param completionHandler 完成回调
  @return 任务
  */
-+ (NSURLSessionDataTask *)loginRegisterWithRequest:(DDPRegisterRequest *)request
-                        completionHandler:(DDP_ENTITY_RESPONSE_ACTION(DDPRegisterResponse))completionHandler;
++ (NSURLSessionDataTask *)registerWithRequest:(DDPRegisterRequest *)request
+                        completionHandler:(DDP_ENTITY_RESPONSE_ACTION(DDPUser))completionHandler;
 
 
 /**
@@ -45,8 +49,8 @@
  @param completionHandler 完成回调
  @return 任务
  */
-+ (NSURLSessionDataTask *)loginRegisterRelateToThirdPartyWithRequest:(DDPRegisterRequest *)request
-                                                   completionHandler:(DDP_ENTITY_RESPONSE_ACTION(DDPRegisterResponse))completionHandler;
++ (NSURLSessionDataTask *)registerRelateToThirdPartyWithRequest:(DDPRegisterRequest *)request
+                                                   completionHandler:(DDP_ENTITY_RESPONSE_ACTION(DDPRegisterResult))completionHandler;
 
 
 /**
@@ -56,36 +60,41 @@
  @param completionHandler 完成回调
  @return 任务
  */
-+ (NSURLSessionDataTask *)loginRegisterRelateOnlyWithRequest:(DDPRegisterRequest *)request
-                                                   completionHandler:(DDP_ENTITY_RESPONSE_ACTION(DDPRegisterResponse))completionHandler;
++ (NSURLSessionDataTask *)relateOnlyWithRequest:(DDPRegisterRequest *)request
+                                                   completionHandler:(DDPErrorCompletionAction)completionHandler;
 
 /**
  修改用户名
 
- @param userId 用户id
- @param token 用户token
  @param userName 用户名
  @param completionHandler 完成回调
  @return 任务
  */
-+ (NSURLSessionDataTask *)loginEditUserNameWithUserId:(NSUInteger)userId
-                                                token:(NSString *)token
-                                             userName:(NSString *)userName
++ (NSURLSessionDataTask *)editUserNameWithUserName:(NSString *)userName
                                            completionHandler:(DDPErrorCompletionAction)completionHandler;
 /**
  修改密码
  
- @param userId 用户id
- @param token 用户token
  @param oldPassword 原密码
  @param aNewPassword 新密码
  @param completionHandler 完成回调
  @return 任务
  */
-+ (NSURLSessionDataTask *)loginEditPasswordWithUserId:(NSUInteger)userId
-                                                token:(NSString *)token
-                                          oldPassword:(NSString *)oldPassword
++ (NSURLSessionDataTask *)editPasswordWithOldPassword:(NSString *)oldPassword
                                              aNewPassword:(NSString *)aNewPassword
                                     completionHandler:(DDPErrorCompletionAction)completionHandler;
+
+/**
+ 重设密码
+
+ @param account 账号id
+ @param email 邮箱
+ @param completionHandler 完成回调
+ @return 任务
+ */
++ (NSURLSessionDataTask *)resetPasswordWithAccount:(NSString *)account
+                                                email:(NSString *)email
+                                    completionHandler:(DDPErrorCompletionAction)completionHandler;
+
 
 @end

@@ -9,10 +9,11 @@
 #import "DDPQRScannerViewController.h"
 #import "JHQRCodeReader.h"
 #import "DDPEdgeButton.h"
-#import "UIApplication+Tools.h"
 #import "DDPQRHelpViewController.h"
 #import "DDPCacheManager+multiply.h"
 #import "DDPQRScannerHistoryView.h"
+#import "DDPTransparentNavigationBar.h"
+#import "CALayer+Animation.h"
 
 #define SCANNER_SIZE (MIN([UIScreen mainScreen].bounds.size.height, [UIScreen mainScreen].bounds.size.width) * 0.7)
 
@@ -25,11 +26,6 @@
 @end
 
 @implementation DDPQRScannerViewController
-
-- (void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
-    [self setNavigationBarWithColor:[UIColor clearColor]];
-}
 
 - (void)viewDidDisappear:(BOOL)animated{
     [super viewDidDisappear:animated];
@@ -94,13 +90,17 @@
     [self addQRLayer];
 }
 
+- (Class)ddp_navigationBarClass {
+    return [DDPTransparentNavigationBar class];
+}
+
 - (void)dealloc {
     [self.QRCodeReader stopScanning];
 }
 
 #pragma mark - 私有方法
 - (void)scanResultWithText:(NSString *)text {
-    NSLog(@"%@", text);
+    LOG_INFO(DDPLogModuleFile, @"搜索 %@", text);
     
     NSDictionary *dic = [text jsonValueDecoded];
     if (dic) {
@@ -112,7 +112,7 @@
             UIAlertController *vc = nil;
             
             if (info.ipAdress.count == 1) {
-                NSString *ip = [NSString stringWithFormat:@"http://%@:%ld", info.ipAdress.firstObject, info.port];
+                NSString *ip = [NSString stringWithFormat:@"http://%@:%lu", info.ipAdress.firstObject, (unsigned long)info.port];
 
                 vc = [UIAlertController alertControllerWithTitle:[NSString stringWithFormat:@"是否连接到%@", info.name] message:ip preferredStyle:UIAlertControllerStyleAlert];
                 [vc addAction:[UIAlertAction actionWithTitle:@"确认" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
@@ -125,7 +125,7 @@
 
                 [info.ipAdress enumerateObjectsUsingBlock:^(NSString * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
 
-                    NSString *aIp = [NSString stringWithFormat:@"http://%@:%ld", obj, info.port];
+                    NSString *aIp = [NSString stringWithFormat:@"http://%@:%lu", obj, (unsigned long)info.port];
                     [vc addAction:[UIAlertAction actionWithTitle:aIp style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
                         [self selectedIp:aIp info:info];
                     }]];
@@ -183,7 +183,8 @@
         }
         else {
             //PC端版本满足
-            if ([responseObject.version compare:WIN_MINI_LINK_VERSION] == NSOrderedAscending) {
+            
+            if ([responseObject.version compare:WIN_MINI_LINK_VERSION options:NSNumericSearch] == NSOrderedAscending) {
                 UIAlertController *warningVC = [UIAlertController alertControllerWithTitle:@"当前电脑版版本过旧，请更新到最新版后使用" message:nil preferredStyle:UIAlertControllerStyleAlert];
                 [warningVC addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
                     [self.QRCodeReader startScanning];
@@ -191,17 +192,85 @@
                 [self presentViewController:warningVC animated:YES completion:nil];
             }
             else {
-                info.selectedIpAdress = ipAddress;
-                [DDPCacheManager shareCacheManager].linkInfo = info;
-                
-                [[DDPCacheManager shareCacheManager] addLinkInfo:info];
-                
-                if (self.linkSuccessCallBack) {
-                    self.linkSuccessCallBack(info);
-                }
+                @weakify(self)
+                //先尝试请求 如果返回401 则要求输入密码
+                [DDPLinkNetManagerOperation linkGetVideoInfoWithIpAdress:ipAddress completionHandler:^(DDPLibrary *model, NSError *error) {
+                    @strongify(self)
+                    if (!self) {
+                        return;
+                    }
+                    
+                    if ([error.localizedDescription containsString:@"401"]) {
+                        
+                        [self showInputAPIAlertVCWithInfo:info ip:ipAddress inputNoCorrect:false completion:^{
+                            if (self.linkSuccessCallBack) {
+                                self.linkSuccessCallBack(info);
+                            }
+                        }];
+                        
+                    }
+                    else {
+                        info.selectedIpAdress = ipAddress;
+                        [DDPCacheManager shareCacheManager].linkInfo = info;
+    
+                        [[DDPCacheManager shareCacheManager] addLinkInfo:info];
+    
+                        if (self.linkSuccessCallBack) {
+                            self.linkSuccessCallBack(info);
+                        }
+                    }
+                }];
             }
         }
     }];
+}
+
+//显示输入秘钥弹窗
+- (void)showInputAPIAlertVCWithInfo:(DDPLinkInfo *)info
+                                 ip:(NSString *)ipAddress
+                     inputNoCorrect:(BOOL)inputNoCorrect
+                         completion:(void(^)(void))completion {
+    
+    let title = inputNoCorrect ? @"密码错误! 请重新输入" : @"请输入API秘钥";
+    
+    @weakify(self)
+    UIAlertController *warningVC = [UIAlertController alertControllerWithTitle:title message:nil preferredStyle:UIAlertControllerStyleAlert];
+    [warningVC addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
+        [textField.layer shake];
+    }];
+    __weak UITextField *weakTextField = warningVC.textFields.firstObject;
+    [warningVC addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        @strongify(self)
+        if (!self) {
+            return;
+        }
+        
+        info.apiToken = weakTextField.text;
+        info.selectedIpAdress = ipAddress;
+        [DDPCacheManager shareCacheManager].linkInfo = info;
+        
+        [DDPLinkNetManagerOperation linkGetVideoInfoWithIpAdress:ipAddress completionHandler:^(DDPLibrary *model, NSError *error) {
+            if ([error.localizedDescription containsString:@"401"]) {
+                
+                [self showInputAPIAlertVCWithInfo:info ip:ipAddress inputNoCorrect:true completion:completion];
+                
+            }
+            else {
+                [[DDPCacheManager shareCacheManager] addLinkInfo:info];
+                
+                if (completion) {
+                    completion();
+                }
+            }
+        }];
+        
+    }]];
+    
+    [warningVC addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
+        [self.QRCodeReader startScanning];
+    }]];
+    
+    [self presentViewController:warningVC animated:YES completion:nil];
 }
 
 - (void)touchHelpButton:(UIButton *)sender {
@@ -306,7 +375,7 @@
         _button = [[DDPEdgeButton alloc] init];
         _button.titleLabel.font = [UIFont ddp_normalSizeFont];
         _button.inset = CGSizeMake(20, 20);
-        [_button setTitle:@"点我手动输入ip或域名~(￣▽￣)" forState:UIControlStateNormal];
+        [_button setTitle:@"点我手动输入地址~(￣▽￣)" forState:UIControlStateNormal];
         [_button addTarget:self action:@selector(touchButton:) forControlEvents:UIControlEventTouchUpInside];
         [_button setTitleColor:DDPRGBColor(180, 180, 180) forState:UIControlStateNormal];
         [self.view addSubview:_button];

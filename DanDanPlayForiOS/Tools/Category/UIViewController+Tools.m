@@ -8,6 +8,11 @@
 
 #import "UIViewController+Tools.h"
 
+#if !DDPAPPTYPEISMAC
+#import "DDPPlayNavigationController.h"
+#import "DDPMatchViewController.h"
+#endif
+
 @implementation UIViewController (Tools)
 - (void)setNavigationBarWithColor:(UIColor *)color {
     if ([color isEqual:[UIColor clearColor]]) {
@@ -25,6 +30,11 @@
         [self.navigationController.navigationBar setBackgroundImage:nil forBarMetrics:UIBarMetricsDefault];
         self.navigationController.navigationBar.shadowImage = [[UIImage alloc] init];
     }
+}
+
+
+- (void)tryAnalyzeVideo:(DDPVideoModel *)model {
+    [DDPMethod matchVideoModel:model completion:nil];
 }
 
 @end

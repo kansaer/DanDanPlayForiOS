@@ -12,7 +12,6 @@
 
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
     if (self = [super initWithStyle:style reuseIdentifier:reuseIdentifier]) {
-        self.selectionStyle = UITableViewCellSelectionStyleNone;
         self.backgroundColor = [UIColor clearColor];
         [self.titleLabel mas_makeConstraints:^(MASConstraintMaker *make) {
             make.top.left.mas_equalTo(10);
@@ -42,7 +41,8 @@
 
 - (UIImageView *)iconImgView {
     if (_iconImgView == nil) {
-        _iconImgView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"comment_cheak_mark_selected"]];
+        var img = [[UIImage imageNamed:@"comment_cheak_mark_selected"] renderByMainColor];
+        _iconImgView = [[UIImageView alloc] initWithImage:img];
         [_iconImgView setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
         [_iconImgView setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
         [self.contentView addSubview:_iconImgView];

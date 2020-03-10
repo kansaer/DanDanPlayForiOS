@@ -9,8 +9,6 @@
 #import "AppDelegate.h"
 #import "DDPMainViewController.h"
 #import <IQKeyboardManager.h>
-#import <Bugly/Bugly.h>
-#import <UMSocialCore/UMSocialCore.h>
 #import <AVFoundation/AVFoundation.h>
 #import "DDPMediaPlayer.h"
 #import <MediaPlayer/MediaPlayer.h>
@@ -19,7 +17,20 @@
 #import "DDPDownloadViewController.h"
 #import "DDPQRScannerViewController.h"
 #import "DDPDownloadManager.h"
-#import <BayMaxProtector.h>
+//#import <BayMaxProtector.h>
+#import "DDPPlayNavigationController.h"
+#import "DDPSharedNetManager.h"
+#import <YYCategories/NSData+YYAdd.h>
+
+#if !DDPAPPTYPEISMAC
+#import <Bugly/Bugly.h>
+#import <UMSocialCore/UMSocialCore.h>
+#import <UMMobClick/MobClick.h>
+#else
+#import <SSZipArchive/SSZipArchive.h>
+#import <DDPShare/DDPShare.h>
+#import "DDPBaseMessage+Hook.h"
+#endif
 
 @interface AppDelegate ()
 
@@ -28,19 +39,23 @@
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    NSLog(@"%@", [UIApplication sharedApplication].documentsURL);
+    LOG_DEBUG(DDPLogModuleOther, @"documentsURL: %@", [UIApplication sharedApplication].documentsURL);
     
     [self configIQKeyboardManager];
     [self configBugly];
-    [self configUMShare];
-    [self configDDLog];
+    [self configUM];
     [self configOther];
     
-    DDPMainViewController *vc = [[DDPMainViewController alloc] init];
-    self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-    self.window.backgroundColor = [UIColor ddp_backgroundColor];
-    self.window.rootViewController = vc;
-    [self.window makeKeyAndVisible];
+    if (@available(iOS 13.0, *)) {
+        
+    } else {
+        DDPMainViewController *vc = [[DDPMainViewController alloc] init];
+        self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+        self.window.backgroundColor = [UIColor ddp_backgroundColor];
+        self.window.rootViewController = vc;
+        [self.window makeKeyAndVisible];        
+    }
+    
     
     return YES;
 }
@@ -54,8 +69,7 @@
 }
 
 - (void)applicationDidEnterBackground:(UIApplication *)application {
-    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
-    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    [LogHelper flush];
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application {
@@ -64,6 +78,7 @@
 
 //唤醒
 - (void)applicationDidBecomeActive:(UIApplication *)application {
+#if !DDPAPPTYPEISREVIEW
     NSString *content = [UIPasteboard generalPasteboard].string;
     
     //系统剪贴板有磁力链并且第一次打开
@@ -71,7 +86,7 @@
         //防止重复弹出
         [UIPasteboard generalPasteboard].string = @"";
         
-        UITabBarController *tabBarController = (UITabBarController *)self.window.rootViewController;
+        UITabBarController *tabBarController = (UITabBarController *)application.ddp_mainWindow.rootViewController;
         UINavigationController *nav = (UINavigationController *)tabBarController.selectedViewController;
         
         void(^downloadAction)(NSString *) = ^(NSString *magnet){
@@ -128,39 +143,73 @@
             [nav presentViewController:vc animated:YES completion:nil];
         }
     }
+#endif
 }
 
 - (void)applicationWillTerminate:(UIApplication *)application {
-    // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+    [LogHelper deinitLog];
 }
-
-#if __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_9_0
-- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(nullable NSString *)sourceApplication annotation:(id)annotation {
-    BOOL result = [[UMSocialManager defaultManager] handleOpenURL:url sourceApplication:sourceApplication annotation:annotation];
-    if (!result) {
-        NSURL *toURL = [[[UIApplication sharedApplication] documentsURL] URLByAppendingPathComponent:[url lastPathComponent]];
-        [[NSFileManager defaultManager] copyItemAtURL:url toURL:toURL error:nil];
-        return YES;
-    }
-    
-    return result;
-}
-#else
 
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url options:(nonnull NSDictionary<NSString *,id> *)options {
-    BOOL result = [[UMSocialManager defaultManager] handleOpenURL:url options:options];
+    BOOL result = NO;
+    
+#if !DDPAPPTYPEISMAC
+    result = [[UMSocialManager defaultManager] handleOpenURL:url options:options];
+#endif
+    
     if (!result) {
-        NSURL *toURL = [[[UIApplication sharedApplication] documentsURL] URLByAppendingPathComponent:[url lastPathComponent]];
-        [[NSFileManager defaultManager] copyItemAtURL:url toURL:toURL error:nil];
+        if ([options[UIApplicationOpenURLOptionsSourceApplicationKey] isEqual:@"com.apple.DocumentsApp"]) {
+            
+            if ([application.ddp_mainWindow.rootViewController isKindOfClass:[UITabBarController class]]) {
+                UITabBarController *tabvc = (UITabBarController *)application.ddp_mainWindow.rootViewController;
+                
+                UINavigationController *nav = tabvc.selectedViewController;
+                if ([nav isKindOfClass:[UINavigationController class]]) {
+                    let file = [[DDPFile alloc] initWithFileURL:url type:DDPFileTypeDocument];
+                    let video = file.videoModel;
+                    
+                    [nav tryAnalyzeVideo:video];
+                }
+            }
+        }
+        else {
+            NSURL *toURL = [[[UIApplication sharedApplication] documentsURL] URLByAppendingPathComponent:[url lastPathComponent]];
+            [[NSFileManager defaultManager] copyItemAtURL:url toURL:toURL error:nil];
+        }
+        
         return YES;
     }
     return result;
 }
-
-#endif
 
 - (UIInterfaceOrientationMask)application:(UIApplication *)application supportedInterfaceOrientationsForWindow:(UIWindow *)window {
     return UIInterfaceOrientationMaskAllButUpsideDown;
+}
+
+- (UISceneConfiguration *)application:(UIApplication *)application configurationForConnectingSceneSession:(UISceneSession *)connectingSceneSession options:(UISceneConnectionOptions *)options API_AVAILABLE(ios(13.0)) {
+    // Called when a new scene session is being created.
+    // Use this method to select a configuration to create the new scene with.
+    return [[UISceneConfiguration alloc] initWithName:@"Default Configuration" sessionRole:connectingSceneSession.role];
+}
+
+- (void)buildMenuWithBuilder:(id<UIMenuBuilder>)builder API_AVAILABLE(ios(13.0)) {
+    [super buildMenuWithBuilder:builder];
+    [builder removeMenuForIdentifier:UIMenuFormat];
+    [builder removeMenuForIdentifier:UIMenuFile];
+    
+    let helpCommad = [UIKeyCommand keyCommandWithInput:@"" modifierFlags:kNilOptions action:@selector(showHelpGuild)];
+    helpCommad.title = @"FAQ";
+
+    [builder replaceChildrenOfMenuForIdentifier:UIMenuHelp fromChildrenBlock:^NSArray<UIMenuElement *> * _Nonnull(NSArray<UIMenuElement *> * _Nonnull) {
+        return @[helpCommad];
+    }];
+}
+
+- (void)showHelpGuild {
+    let path = [[NSBundle mainBundle] pathForResource:@"FAQ" ofType:@"html"];
+    if (path) {
+        [UIApplication.sharedApplication openURL:[NSURL fileURLWithPath:path] options:@{} completionHandler:nil];
+    }
 }
 
 #pragma mark - 私有方法
@@ -171,33 +220,84 @@
 }
 
 - (void)configBugly {
-    [Bugly startWithAppId:BUGLY_KEY];
+    #if !DDPAPPTYPEISMAC
+    [Bugly startWithAppId:ddp_buglyKey];
+    #endif
 }
 
-- (void)configUMShare {
-    [[UMSocialManager defaultManager] openLog:YES];
-    [[UMSocialManager defaultManager] setUmSocialAppkey:UM_SHARE_KEY];
-    [[UMSocialManager defaultManager] setPlaform:UMSocialPlatformType_QQ appKey:QQ_APP_KEY appSecret:nil redirectURL:nil];
-    [[UMSocialManager defaultManager] setPlaform:UMSocialPlatformType_Sina appKey:WEIBO_APP_KEY appSecret:WEIBO_APP_SECRET redirectURL:WEIBO_REDIRECT_URL];
-}
-
-- (void)configDDLog {
-    [DDLog addLogger:[DDTTYLogger sharedInstance]];
+- (void)configUM {
+#if !DDPAPPTYPEISMAC
+    if (ddp_UMShareKey.length != 0) {
+        [[UMSocialManager defaultManager] openLog:YES];
+        [[UMSocialManager defaultManager] setUmSocialAppkey:ddp_UMShareKey];
+        [[UMSocialManager defaultManager] setPlaform:UMSocialPlatformType_QQ appKey:ddp_QQAppKey appSecret:nil redirectURL:nil];
+        [[UMSocialManager defaultManager] setPlaform:UMSocialPlatformType_Sina appKey:ddp_weiboAppKey appSecret:ddp_weiboSecretKey redirectURL:ddp_weiboRedirectURL];
+        
+        //友盟统计
+        UMConfigInstance.appKey = ddp_UMShareKey;
+        UMConfigInstance.channelId = @"App Store";
+        [MobClick setAppVersion:[UIApplication sharedApplication].appVersion];
+        [MobClick startWithConfigure:UMConfigInstance];        
+    }
+#endif
 }
 
 - (void)configOther {
     if (@available(iOS 11.0, *)) {
         [UITableView appearance].contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
     }
+    
+//    [UILabel appearance].font = [UIFont ddp_normalSizeFont];
+    [UITextView appearance].tintColor = [UIColor ddp_mainColor];
+    
+    if (@available(iOS 13.0, *)) {
+        UIImage *normalBgImage = [[UIImage imageWithColor:UIColor.lightGrayColor size:CGSizeMake(10, 10)] imageByRoundCornerRadius:4];
+        normalBgImage = [normalBgImage resizableImageWithCapInsets:UIEdgeInsetsMake(4, 4, 4, 4)];
+        [UIStepper.appearance setBackgroundImage:normalBgImage forState:UIControlStateNormal];
+        
+        UIImage *selectedBgImage = [[UIImage imageWithColor:UIColor.grayColor size:CGSizeMake(10, 10)] imageByRoundCornerRadius:4];
+        selectedBgImage = [selectedBgImage resizableImageWithCapInsets:UIEdgeInsetsMake(4, 4, 4, 4)];
+        [UIStepper.appearance setBackgroundImage:selectedBgImage forState:UIControlStateHighlighted];        
+    }
+    
+    
+    [[DDPSharedNetManager sharedNetManager] resetJWTToken:[DDPCacheManager shareCacheManager].currentUser.JWTToken];
+    
+#if DDPAPPTYPEISMAC
+    let applicationDirectory = [[[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSUserDomainMask] lastObject].path;
+    let tempPath = [applicationDirectory stringByAppendingPathComponent:@"弹弹Play播放器.app"];
+    
+    void(^copyAction)(void) = ^{
+        let appPathInBundle = [[NSBundle mainBundle] pathForResource:@"inner_player" ofType:@"zip"];
+        [SSZipArchive unzipFileAtPath:appPathInBundle toDestination:applicationDirectory];
+    };
+    
+    if (![[NSFileManager defaultManager] fileExistsAtPath:tempPath]) {
+        copyAction();
+    } else {
+        let plistPath = [tempPath stringByAppendingPathComponent:@"Contents/Info.plist"];
+        let plistDic = [NSDictionary dictionaryWithContentsOfFile:plistPath];
+        NSString *localVersion = plistDic[@"CFBundleVersion"];
+        NSString *currentVersion = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"InnerPlayerVersion"];
+        if ([localVersion compare:currentVersion options:NSNumericSearch] == NSOrderedAscending) {
+            [NSFileManager.defaultManager removeItemAtPath:tempPath error:nil];
+            copyAction();
+        }
+    }
+#else
+    
+    [LogHelper setupLog];
+    
+#endif
 }
 
 - (void)configCrash {
-#ifndef DEBUG
-    [BayMaxProtector openProtectionsOn:BayMaxProtectionTypeAll catchErrorHandler:^(BayMaxCatchError * _Nullable error) {
-        NSDictionary *errorInfos = error.errorInfos;
-        [Bugly reportExceptionWithCategory:3 name:errorInfos[BMPErrorUnrecognizedSel_Func] reason:errorInfos[BMPErrorUnrecognizedSel_Reason] callStack:errorInfos[BMPErrorCallStackSymbols] extraInfo:errorInfos terminateApp:false];
-    }];
-#endif
+//#ifndef DEBUG
+//    [BayMaxProtector openProtectionsOn:BayMaxProtectionTypeAll catchErrorHandler:^(BayMaxCatchError * _Nullable error) {
+//        NSDictionary *errorInfos = error.errorInfos;
+//        [Bugly reportExceptionWithCategory:3 name:errorInfos[BMPErrorUnrecognizedSel_Func] reason:errorInfos[BMPErrorUnrecognizedSel_Reason] callStack:errorInfos[BMPErrorCallStackSymbols] extraInfo:errorInfos terminateApp:false];
+//    }];
+//#endif
 }
 
 - (void)remoteControlReceivedWithEvent:(UIEvent *)event {

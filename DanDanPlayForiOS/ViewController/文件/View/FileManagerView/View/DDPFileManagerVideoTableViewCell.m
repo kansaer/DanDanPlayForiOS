@@ -8,6 +8,7 @@
 
 #import "DDPFileManagerVideoTableViewCell.h"
 #import "DDPEdgeLabel.h"
+#import "UIImage+Tools.h"
 
 @interface DDPFileManagerVideoTableViewCell ()
 @property (strong, nonatomic) UIImageView *imgView;
@@ -20,6 +21,8 @@
         [self.imgView mas_remakeConstraints:^(MASConstraintMaker *make) {
             make.left.mas_offset(15);
             make.centerY.mas_equalTo(0);
+            make.top.greaterThanOrEqualTo(self.contentView).offset(10);
+            make.bottom.lessThanOrEqualTo(self.contentView).offset(-10);
         }];
         
         [self.fileTypeLabel mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -67,7 +70,8 @@
 #pragma mark - 懒加载
 - (UIImageView *)imgView {
     if (_imgView == nil) {
-        _imgView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"comment_file_type"]];
+        var img = [[UIImage imageNamed:@"comment_file_type"] renderByMainColor];
+        _imgView = [[UIImageView alloc] initWithImage:img];
         [self.contentView addSubview:_imgView];
     }
     return _imgView;

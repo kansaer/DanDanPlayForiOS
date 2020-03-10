@@ -33,7 +33,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.navigationItem.title = @"远程设备";
+    self.navigationItem.title = @"局域网设备";
     [self configRightItem];
     
     [self.tableView mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -62,9 +62,9 @@
     DDPFileManagerFolderPlayerListViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"DDPFileManagerFolderPlayerListViewCell" forIndexPath:indexPath];
     if (cell.isFromCache == NO) {
         cell.titleLabel.textColor = [UIColor blackColor];
-        cell.rightButtons = @[[MGSwipeButton buttonWithTitle:@"删除" backgroundColor:[UIColor redColor]]];
-        cell.rightSwipeSettings.transition = MGSwipeTransitionClipCenter;
-        cell.delegate = self;
+//        cell.rightButtons = @[[MGSwipeButton buttonWithTitle:@"删除" backgroundColor:[UIColor redColor]]];
+//        cell.rightSwipeSettings.transition = MGSwipeTransitionClipCenter;
+//        cell.delegate = self;
         [cell.titleLabel mas_updateConstraints:^(MASConstraintMaker *make) {
             make.top.mas_offset(15);
             make.bottom.mas_offset(-15);
@@ -122,7 +122,7 @@
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
     if (section == 0) {
         DDPSMBLoginHeaderView *view = [tableView dequeueReusableHeaderFooterViewWithIdentifier:@"DDPSMBLoginHeaderView"];
-        view.titleLabel.text = @"本地服务器";
+        view.titleLabel.text = @"本地局域网设备";
         return view;
     }
     
@@ -135,21 +135,36 @@
     return nil;
 }
 
-#pragma mark - MGSwipeTableCellDelegate
-- (BOOL)swipeTableCell:(nonnull MGSwipeTableCell*)cell canSwipe:(MGSwipeDirection) direction {
-    NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
-    return indexPath.section == 1;
+- (NSArray<UITableViewRowAction *> *)tableView:(UITableView *)tableView editActionsForRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (indexPath.section == 1) {
+        return @[^{
+            UITableViewRowAction *action = [UITableViewRowAction rowActionWithStyle:UITableViewRowActionStyleNormal title:@"删除" handler:^(UITableViewRowAction * _Nonnull action, NSIndexPath * _Nonnull aIndexPath) {
+                DDPSMBInfo *model = [DDPCacheManager shareCacheManager].SMBLinkInfos[aIndexPath.row];
+                [self touchDeleteButtonWithAction:model];
+            }];
+            action.backgroundColor = DDPRGBColor(255, 48, 54);
+            return action;
+        }()];
+    }
+    
+    return @[];
 }
 
-- (BOOL)swipeTableCell:(nonnull MGSwipeTableCell*)cell tappedButtonAtIndex:(NSInteger)index direction:(MGSwipeDirection)direction fromExpansion:(BOOL) fromExpansion {
-    NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
-    if (indexPath.section == 1) {
-        DDPSMBInfo *model = [DDPCacheManager shareCacheManager].SMBLinkInfos[indexPath.row];
-        [[DDPCacheManager shareCacheManager] removeSMBInfo:model];
-        [self.tableView reloadData];
-    }
-    return YES;
-}
+//#pragma mark - MGSwipeTableCellDelegate
+//- (BOOL)swipeTableCell:(nonnull MGSwipeTableCell*)cell canSwipe:(MGSwipeDirection) direction {
+//    NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
+//    return indexPath.section == 1;
+//}
+
+//- (BOOL)swipeTableCell:(nonnull MGSwipeTableCell*)cell tappedButtonAtIndex:(NSInteger)index direction:(MGSwipeDirection)direction fromExpansion:(BOOL) fromExpansion {
+//    NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
+//    if (indexPath.section == 1) {
+//        DDPSMBInfo *model = [DDPCacheManager shareCacheManager].SMBLinkInfos[indexPath.row];
+//        [[DDPCacheManager shareCacheManager] removeSMBInfo:model];
+//        [self.tableView reloadData];
+//    }
+//    return YES;
+//}
 
 #pragma mark - 私有方法
 - (void)loginWithModel:(DDPSMBInfo *)model completion:(void(^)(BOOL success))completion {
@@ -217,6 +232,7 @@
         
         model.userName = aView.userNameTextField.text;
         model.password = aView.passwordTextField.text;
+        model.workGroup = aView.workGroupTextField.text.length > 0 ? aView.workGroupTextField.text : @"WORKGROUP";
         [self loginWithModel:model completion:^(BOOL success) {
             if (success) {
                 [aView dismiss];
@@ -255,6 +271,18 @@
     [self.navigationController pushViewController:vc animated:YES];
 }
 
+- (void)touchDeleteButtonWithAction:(DDPSMBInfo *)info {
+    UIAlertController *vc = [UIAlertController alertControllerWithTitle:@"提示" message:@"确认删除吗？" preferredStyle:UIAlertControllerStyleAlert];
+    [vc addAction:[UIAlertAction actionWithTitle:@"确认" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        [[DDPCacheManager shareCacheManager] removeSMBInfo:info];
+        [self.tableView reloadData];
+    }]];
+    
+    [vc addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    
+    [self presentViewController:vc animated:true completion:nil];
+}
+
 #pragma mark - 懒加载
 - (DDPBaseTableView *)tableView {
     if (_tableView == nil) {
@@ -281,12 +309,11 @@
                 [self.nameServiceEntries addObject:entry];
                 [self.tableView reloadSection:0 withRowAnimation:UITableViewRowAnimationAutomatic];
                 
-                NSLog(@"连接成功 %@", entry.name);
-                
+                LOG_INFO(DDPLogModuleFile, @"连接成功 %@", entry.name);
             } removed:^(TONetBIOSNameServiceEntry *entry) {
                 [self.nameServiceEntries removeObject:entry];
                 [self.tableView reloadSection:0 withRowAnimation:UITableViewRowAnimationAutomatic];
-                NSLog(@"连接失败 %@", entry.name);
+                LOG_ERROR(DDPLogModuleFile, @"连接失败 %@", entry.name);
             }];
             
             [self.tableView.mj_header endRefreshing];

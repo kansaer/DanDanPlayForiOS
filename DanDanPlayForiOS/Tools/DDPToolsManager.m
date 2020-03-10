@@ -10,13 +10,14 @@
 #import "DDPHTTPConnection.h"
 #import "NSString+Tools.h"
 #import <YYCache.h>
-#import <MobileVLCKit/MobileVLCKit.h>
 #import <HTTPServer.h>
-#import <TOSMBClient.h>
 #import "NSURL+Tools.h"
+#import "DDPLoginViewController.h"
+#if !DDPAPPTYPEISMAC
+#import <TOSMBClient.h>
 #import <Bugly/Bugly.h>
 #import "DDPMediaThumbnailer.h"
-#import "DDPLoginViewController.h"
+#endif
 
 static NSString *const tempImageKey = @"temp_image";
 static NSString *const smbProgressBlockKey = @"smb_progress_block";
@@ -59,15 +60,15 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
 }
 
 - (void)videoSnapShotWithModel:(DDPVideoModel *)model completion:(GetSnapshotAction)completion {
-    
+    #if !DDPAPPTYPEISMAC
     //防止重复获取缩略图
     if (model == nil || completion == nil || objc_getAssociatedObject(model, &tempImageKey)) return;
     
     objc_setAssociatedObject(model, &tempImageKey, @(YES), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    
+    let aMedia = [[VLCMedia alloc] initWithURL:model.fileURL];
     dispatch_group_async(_parseVideoGroup, _queue, ^{
         dispatch_semaphore_wait(_semaphore, DISPATCH_TIME_FOREVER);
-        DDPMediaThumbnailer *thumbnailer = [[DDPMediaThumbnailer alloc] initWithMedia:model.media block:^(UIImage *image) {
+        DDPMediaThumbnailer *thumbnailer = [[DDPMediaThumbnailer alloc] initWithMedia:aMedia block:^(UIImage *image) {
             [[YYWebImageManager sharedManager].cache setImage:image forKey:model.quickHash];
             
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -82,6 +83,7 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
         
         [thumbnailer fetchThumbnail];
     });
+#endif
 }
 
 + (NSArray *)subTitleFileWithLocalURL:(NSURL *)url {
@@ -105,23 +107,6 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
     }
     
     return subTitleFiles;
-}
-
-- (void)popLoginAlertViewInViewController:(UIViewController *)viewController {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if ([DDPCacheManager shareCacheManager].user == nil) {
-            UIAlertController *vc = [UIAlertController alertControllerWithTitle:@"需要登录才能继续操作" message:@"跳转到登录页吗？" preferredStyle:UIAlertControllerStyleAlert];
-            [vc addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-                DDPLoginViewController *vc = [[DDPLoginViewController alloc] init];
-                vc.hidesBottomBarWhenPushed = YES;
-                [viewController.navigationController pushViewController:vc animated:YES];
-            }]];
-            
-            [vc addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-            
-            [viewController presentViewController:vc animated:YES completion:nil];
-        }
-    });
 }
 
 
@@ -226,20 +211,8 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
         
         [rootFile.subFiles addObjectsFromArray:folderDic.allValues];
         
-        //把文件夹排在前面
-        [rootFile.subFiles sortUsingComparator:^NSComparisonResult(DDPFile * _Nonnull obj1, DDPFile * _Nonnull obj2) {
-            
-            if (obj1.type == DDPFileTypeFolder) {
-                return NSOrderedAscending;
-            }
-            
-            if (obj2.type == DDPFileTypeFolder) {
-                return NSOrderedDescending;
-            }
-            
-            return [obj1.name compare:obj2.name];
-        }];
-        
+        [self sortFiles:rootFile.subFiles];
+
         if (completion) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 completion(rootFile);
@@ -300,6 +273,8 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
         }
         
         [rootFile.subFiles addObjectsFromArray:folderDic.allValues];
+        
+        [self sortFiles:rootFile.subFiles];
         
         dispatch_async(dispatch_get_main_queue(), ^{
             completion(rootFile);
@@ -380,6 +355,7 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
     completion(aFile);
 }
 
+
 #pragma mark - SMB
 - (void)startDiscovererSMBFileWithParentFile:(DDPSMBFile *)parentFile
                                   completion:(GetSMBFilesAction)completion {
@@ -389,6 +365,9 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
 - (void)startDiscovererSMBFileWithParentFile:(DDPSMBFile *)parentFile
                                     fileType:(PickerFileType)fileType
                                   completion:(GetSMBFilesAction)completion {
+#if DDPAPPTYPEIOS
+    
+
     TOSMBSession *session = self.SMBSession;
     
     //根目录
@@ -441,9 +420,11 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
             completion(nil, err);
         }
     }];
+#endif
 }
 
 - (void)setSmbInfo:(DDPSMBInfo *)smbInfo {
+#if DDPAPPTYPEIOS
     [self.SMBSession cancelAllRequests];
     _smbInfo = smbInfo;
     TOSMBSession *session = [[TOSMBSession alloc] init];
@@ -454,6 +435,7 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
     //最大下载任务数
     session.maxTaskOperationCount = 5;
     self.SMBSession = session;
+#endif
 }
 
 - (void)downloadSMBFile:(DDPSMBFile *)file
@@ -468,6 +450,8 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
                progress:(void(^)(uint64_t totalBytesReceived, int64_t totalBytesToReceive, TOSMBSessionDownloadTask *task))progress
                  cancel:(void(^)(NSString *cachePath))cancel
              completion:(void(^)(NSString *destinationFilePath, NSError *error))completion {
+#if DDPAPPTYPEIOS
+    
     TOSMBSessionDownloadTask *task = [self.SMBSession downloadTaskForFileAtPath:file.sessionFile.filePath destinationPath:destinationPath delegate:self];
     objc_setAssociatedObject(task, &smbProgressBlockKey, progress, OBJC_ASSOCIATION_COPY_NONATOMIC);
     objc_setAssociatedObject(task, &smbCompletionBlockKey, completion, OBJC_ASSOCIATION_COPY_NONATOMIC);
@@ -487,8 +471,10 @@ static NSString *const parseMediaCompletionBlockKey = @"parse_media_completion_b
     }];
     
     [task resume];
+#endif
 }
 
+#if DDPAPPTYPEIOS
 #pragma mark TOSMBSessionDownloadTaskDelegate
 - (void)downloadTask:(TOSMBSessionDownloadTask *)downloadTask
        didWriteBytes:(uint64_t)bytesWritten
@@ -538,6 +524,8 @@ totalBytesExpectedToReceive:(int64_t)totalBytesToReceive {
     objc_setAssociatedObject(task, &smbCompletionBlockKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(task, &smbProgressBlockKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
+
+#endif
 
 #pragma mark - PC端
 - (void)startDiscovererFileWithLinkParentFile:(DDPLinkFile *)parentFile
@@ -616,6 +604,45 @@ totalBytesExpectedToReceive:(int64_t)totalBytesToReceive {
     [self startDiscovererFileWithLinkParentFile:parentFile linkInfo:[DDPCacheManager shareCacheManager].linkInfo completion:completion];
 }
 
+
+#pragma mark - 私有方法
+- (void)sortFiles:(NSMutableArray <DDPFile *>*)files {
+    
+    for (DDPFile *f in files) {
+        if (f.subFiles.count) {
+            [self sortFiles:f.subFiles];
+        }
+    }
+    
+    DDPFileSortType sortType = [DDPCacheManager shareCacheManager].fileSortType;
+    [files sortUsingComparator:^NSComparisonResult(DDPFile * _Nonnull obj1, DDPFile * _Nonnull obj2) {
+        if (sortType == 0) {
+            if (obj1.type == DDPFileTypeFolder) {
+                return NSOrderedAscending;
+            }
+
+            if (obj2.type == DDPFileTypeFolder) {
+                return NSOrderedDescending;
+            }
+
+            return [obj1.name compare:obj2.name];
+        }
+        else {
+            if (obj1.type == DDPFileTypeFolder) {
+                return NSOrderedDescending;
+            }
+
+            if (obj2.type == DDPFileTypeFolder) {
+                return NSOrderedAscending;
+            }
+
+            return [obj2.name compare:obj1.name];
+        }
+    }];
+    
+}
+
+#if !DDPAPPTYPEISREVIEW
 #pragma mark - HTTPServer
 
 + (HTTPServer *)shareHTTPServer {
@@ -638,6 +665,7 @@ totalBytesExpectedToReceive:(int64_t)totalBytesToReceive {
     [httpServer setInterface:[NSString getIPAddress]];
     [httpServer setPort:23333];
 }
+#endif
 
 
 @end

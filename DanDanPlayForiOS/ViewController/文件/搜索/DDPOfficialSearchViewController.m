@@ -7,8 +7,11 @@
 //
 
 #import "DDPOfficialSearchViewController.h"
+
+#if !DDPAPPTYPEISMAC
 #import "DDPPlayerViewController.h"
 #import "DDPPlayNavigationController.h"
+#endif
 
 #import "DDPSearchAnimeTitleTableViewCell.h"
 #import "DDPSearchEpisodeTableViewCell.h"
@@ -19,12 +22,12 @@
 
 @interface DDPOfficialSearchViewController ()<RATreeViewDelegate, RATreeViewDataSource>
 @property (strong, nonatomic) DDPBaseTreeView *treeView;
-@property (strong, nonatomic) NSMutableDictionary <NSNumber *, NSMutableArray <DDPSearch *>*>*classifyDic;
+@property (strong, nonatomic) NSMutableDictionary <NSString *, NSMutableArray <DDPSearch *>*>*classifyDic;
 @end
 
 @implementation DDPOfficialSearchViewController
 {
-    NSArray <NSNumber *>*_resortKeys;
+    NSArray <NSString *>*_resortKeys;
 }
 
 - (void)viewDidLoad {
@@ -46,7 +49,7 @@
 
 #pragma mark - RATreeViewDelegate
 - (CGFloat)treeView:(RATreeView *)treeView heightForRowForItem:(id)item {
-    if ([item isKindOfClass:[NSNumber class]] || [item isKindOfClass:[DDPSearch class]]) {
+    if ([item isKindOfClass:[NSString class]] || [item isKindOfClass:[DDPSearch class]]) {
         return 44;
     }
     
@@ -57,14 +60,14 @@
 }
 
 - (void)treeView:(RATreeView *)treeView willExpandRowForItem:(id)item {
-    if ([item isKindOfClass:[NSNumber class]] || [item isKindOfClass:[DDPSearch class]]) {
+    if ([item isKindOfClass:[NSString class]] || [item isKindOfClass:[DDPSearch class]]) {
         DDPMatchTitleTableViewCell *cell = (DDPMatchTitleTableViewCell *)[treeView cellForItem:item];
         [cell expandArrow:YES animate:YES];
     }
 }
 
 - (void)treeView:(RATreeView *)treeView willCollapseRowForItem:(id)item {
-    if ([item isKindOfClass:[NSNumber class]] || [item isKindOfClass:[DDPSearch class]]) {
+    if ([item isKindOfClass:[NSString class]] || [item isKindOfClass:[DDPSearch class]]) {
         DDPMatchTitleTableViewCell *cell = (DDPMatchTitleTableViewCell *)[treeView cellForItem:item];
         [cell expandArrow:NO animate:YES];
     }
@@ -88,6 +91,7 @@
             self.model.matchName = item.name;
             self.model.identity = item.identity;
             
+#if !DDPAPPTYPEISMAC
             __block DDPPlayerViewController *vc = nil;
             [self.navigationController.viewControllers enumerateObjectsUsingBlock:^(__kindof UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 if ([obj isKindOfClass:[DDPPlayerViewController class]]) {
@@ -97,8 +101,8 @@
             }];
             
             //更改匹配信息
-            [DDPMatchNetManagerOperation matchEditMatchVideoModel:self.model user:[DDPCacheManager shareCacheManager].user completionHandler:^(NSError *error) {
-                NSLog(@"%@", error);
+            [DDPMatchNetManagerOperation matchEditMatchVideoModel:self.model user:[DDPCacheManager shareCacheManager].currentUser completionHandler:^(NSError *error) {
+                LOG_ERROR(DDPLogModuleFile, @"匹配失败 %@", error);
             }];
             
             if (vc) {
@@ -109,6 +113,7 @@
                 DDPPlayNavigationController *nav = [[DDPPlayNavigationController alloc] initWithModel:self.model];
                 [self presentViewController:nav animated:YES completion:nil];
             }
+#endif
         }];
     }
 }
@@ -119,7 +124,7 @@
         return _resortKeys.count;
     }
     
-    if ([item isKindOfClass:[NSNumber class]]) {
+    if ([item isKindOfClass:[NSString class]]) {
         NSArray *arr = self.classifyDic[item];
         return arr.count;
     }
@@ -132,9 +137,9 @@
 }
 
 - (UITableViewCell *)treeView:(RATreeView *)treeView cellForItem:(nullable id)item {
-    if ([item isKindOfClass:[NSNumber class]]) {
+    if ([item isKindOfClass:[NSString class]]) {
         DDPMatchTitleTableViewCell *cell = [treeView dequeueReusableCellWithIdentifier:@"DDPMatchTitleTableViewCell"];
-        cell.titleLabel.text = DDPEpisodeTypeToString([item integerValue]);
+        cell.titleLabel.text = item;
         [cell expandArrow:[treeView isCellForItemExpanded:item] animate:NO];
         return cell;
     }
@@ -157,7 +162,7 @@
         return _resortKeys[index];
     }
     
-    if ([item isKindOfClass:[NSNumber class]]) {
+    if ([item isKindOfClass:[NSString class]]) {
         return self.classifyDic[item][index];
     }
     
@@ -170,14 +175,14 @@
     [self.classifyDic removeAllObjects];
     
     [collection.collection enumerateObjectsUsingBlock:^(DDPSearch * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-        if (self.classifyDic[@(obj.type)] == nil) {
-            self.classifyDic[@(obj.type)] = [NSMutableArray array];
+        if (self.classifyDic[obj.typeDescription] == nil) {
+            self.classifyDic[obj.typeDescription] = [NSMutableArray array];
         }
         
-        [self.classifyDic[@(obj.type)] addObject:obj];
+        [self.classifyDic[obj.typeDescription] addObject:obj];
     }];
     
-    _resortKeys = [[self.classifyDic allKeys] sortedArrayUsingComparator:^NSComparisonResult(NSNumber * _Nonnull obj1, NSNumber * _Nonnull obj2) {
+    _resortKeys = [[self.classifyDic allKeys] sortedArrayUsingComparator:^NSComparisonResult(NSString * _Nonnull obj1, NSString * _Nonnull obj2) {
         return [obj1 compare:obj2];
     }];
 }
@@ -211,6 +216,7 @@
                 else {
                     [self classifyWithColletion:responseObject];
                     [self.treeView reloadData];
+                    [self.treeView expandRowForItem:self->_resortKeys.firstObject expandChildren:true withRowAnimation:RATreeViewRowAnimationNone];
                 }
                 
                 [self.treeView endRefreshing];
@@ -221,7 +227,7 @@
     return _treeView;
 }
 
-- (NSMutableDictionary<NSNumber *,NSMutableArray<DDPSearch *> *> *)classifyDic {
+- (NSMutableDictionary<NSString *,NSMutableArray<DDPSearch *> *> *)classifyDic {
     if (_classifyDic == nil) {
         _classifyDic = [NSMutableDictionary dictionary];
     }

@@ -7,18 +7,23 @@
 //
 
 #import "DDPFilterNetManagerOperation.h"
+#import "DDPSharedNetManager.h"
 
 @implementation DDPFilterNetManagerOperation
 + (NSURLSessionDataTask *)cloudFilterListWithCompletionHandler:(void (^)(DDPFilterCollection *, NSError *))completionHandler {
     
     NSString *path = @"https://api.acplay.net/config/filter.xml";
     
-    return [[DDPBaseNetManager shareNetManager] GETWithPath:path
+    return [[DDPSharedNetManager sharedNetManager] GETWithPath:path
                                              serializerType:DDPBaseNetManagerSerializerTypeXML
                                                  parameters:nil
                                           completionHandler:^(DDPResponse *responseObj) {
         if (completionHandler) {
-            completionHandler([DDPFilterCollection yy_modelWithJSON:responseObj.responseObject], responseObj.error);
+            let collection = [DDPFilterCollection yy_modelWithJSON:responseObj.responseObject];
+            [collection.collection enumerateObjectsUsingBlock:^(DDPFilter * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                obj.cloudRule = YES;
+            }];
+            completionHandler(collection, responseObj.error);
         }
     }];
 }

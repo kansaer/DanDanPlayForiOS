@@ -6,7 +6,9 @@
 //  Copyright © 2016年 JimHuang. All rights reserved.
 //
 #import <UIKit/UIKit.h>
+#import "DDPMediaItemProtocal.h"
 
+NS_ASSUME_NONNULL_BEGIN
 typedef NS_ENUM(NSUInteger, DDPMediaPlayerStatus) {
     DDPMediaPlayerStatusPlaying,
     DDPMediaPlayerStatusPause,
@@ -28,7 +30,7 @@ typedef NS_ENUM(NSUInteger, DDPSnapshotType) {
 };
 
 
-typedef void(^SnapshotCompleteBlock)(UIImage *image, NSError *error);
+typedef void(^SnapshotCompleteBlock)(UIImage * _Nullable image, NSError * _Nullable error);
 
 
 /**
@@ -63,15 +65,46 @@ CG_INLINE NSString *ddp_mediaFormatterTime(NSInteger totalSeconds) {
 - (void)mediaPlayer:(DDPMediaPlayer *)player userJumpWithTime:(NSTimeInterval)time;
 @end
 
-
 @interface DDPMediaPlayer : NSObject
-@property (strong, nonatomic) UIView *mediaView;
-@property (strong, nonatomic) NSURL *mediaURL;
+@property (strong, nonatomic) UIView * _Nullable mediaView;
+@property (strong, nonatomic) id<DDPMediaItemProtocol> _Nullable media;
 @property (assign, nonatomic) CGFloat volume;
 @property (assign, nonatomic) NSInteger subtitleDelay;
-@property (strong, nonatomic, readonly) NSArray *subtitleIndexs;
-@property (strong, nonatomic, readonly) NSArray *subtitleTitles;
+
+/**
+ 字幕索引
+ */
+@property (strong, nonatomic, readonly) NSArray <NSNumber *>*subtitleIndexs;
+
+/**
+ 字幕名称
+ */
+@property (strong, nonatomic, readonly) NSArray <NSString *>*subtitleTitles;
+
+/**
+ 当前字幕索引
+ */
 @property (assign, nonatomic) int currentSubtitleIndex;
+
+
+/**
+ 音频索引
+ */
+@property (strong, nonatomic, readonly) NSArray <NSNumber *>*audioChannelIndexs;
+
+/**
+ 音频名称
+ */
+@property (strong, nonatomic, readonly) NSArray <NSString *>*audioChannelTitles;
+
+/**
+ 当前音频索引
+ */
+@property (assign, nonatomic) int currentAudioChannelIndex;
+
+
+
+
 @property (assign, nonatomic) float speed;
 
 /**
@@ -88,12 +121,12 @@ CG_INLINE NSString *ddp_mediaFormatterTime(NSInteger totalSeconds) {
  *  @param position          位置 0 ~ 1
  *  @param completionHandler 完成之后的回调
  */
-- (void)setPosition:(CGFloat)position completionHandler:(void(^)(NSTimeInterval time))completionHandler;
+- (void)setPosition:(CGFloat)position completionHandler:(void(^ _Nullable)(NSTimeInterval time))completionHandler;
 /**
  *  协议返回的时间格式 默认"mm:ss"
  */
 @property (strong, nonatomic) NSString *timeFormat;
-@property (weak, nonatomic) id <DDPMediaPlayerDelegate>delegate;
+@property (weak, nonatomic) id <DDPMediaPlayerDelegate> _Nullable delegate;
 - (DDPMediaPlayerStatus)status;
 - (NSTimeInterval)length;
 - (NSTimeInterval)currentTime;
@@ -103,7 +136,7 @@ CG_INLINE NSString *ddp_mediaFormatterTime(NSInteger totalSeconds) {
  *
  *  @param value 增加的值
  */
-- (void)jump:(int)value completionHandler:(void(^)(NSTimeInterval time))completionHandler;
+- (void)jump:(int)value completionHandler:(void(^ _Nullable)(NSTimeInterval time))completionHandler;
 
 /**
  设置播放时间
@@ -111,7 +144,7 @@ CG_INLINE NSString *ddp_mediaFormatterTime(NSInteger totalSeconds) {
  @param time 播放时间
  @param completionHandler 完成回调
  */
-- (void)setCurrentTime:(int)time completionHandler:(void(^)(NSTimeInterval time))completionHandler;
+- (void)setCurrentTime:(int)time completionHandler:(void(^ _Nullable)(NSTimeInterval time))completionHandler;
 
 /**
  *  音量增加
@@ -129,7 +162,7 @@ CG_INLINE NSString *ddp_mediaFormatterTime(NSInteger totalSeconds) {
  *  @param size  宽 如果为 CGSizeZero则为原视频的宽高
  *  @param height 高 如果填0则为原视频高
  */
-- (void)saveVideoSnapshotwithSize:(CGSize)size completionHandler:(SnapshotCompleteBlock)completion;
+- (void)saveVideoSnapshotwithSize:(CGSize)size completionHandler:(SnapshotCompleteBlock _Nullable)completion;
 /**
  *  加载字幕文件
  *
@@ -145,12 +178,13 @@ CG_INLINE NSString *ddp_mediaFormatterTime(NSInteger totalSeconds) {
  *
  *  @return self
  */
-- (instancetype)initWithMediaURL:(NSURL *)mediaURL;
+- (instancetype)initWithMedia:(id<DDPMediaItemProtocol>)media;
 
 
 /**
- 同步解析
+ 解析
  */
-- (void)synchronousParse;
+- (void)parseWithCompletion:(void(^ _Nullable)(void))completion;
 
 @end
+NS_ASSUME_NONNULL_END

@@ -9,9 +9,9 @@
 #ifndef DDPPrefixHeader_pch
 #define DDPPrefixHeader_pch
 
-#import <YYCategories.h>
+#import <YYCategories/YYCategories.h>
 #import <YYWebImage.h>
-#import <Masonry.h>
+#import <Masonry/Masonry.h>
 #import "MJRefreshFooter+Tools.h"
 #import "MJRefreshHeader+Tools.h"
 #import "UIImageView+Tools.h"
@@ -31,5 +31,12 @@
 #import "UIFont+Tools.h"
 #import "UIColor+Tools.h"
 #import "UIView+Tools.h"
+#import "NSString+Tools.h"
+#import "DDPBaseTableViewCell.h"
+//#import "UIViewController+FullScreenPopGesture.h"
+#import "UITableView+DDPTools.h"
+#import "UIView+Tools.h"
+#import "UICollectionView+DDPTools.h"
+#import "UIApplication+DDPTools.h"
 
 #endif /* DDPPrefixHeader_pch */

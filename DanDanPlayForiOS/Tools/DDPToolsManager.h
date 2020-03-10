@@ -48,15 +48,7 @@ typedef NS_ENUM(NSUInteger, PickerFileType) {
  @param url 路径
  @return 字幕数组
  */
-+ (NSArray *)subTitleFileWithLocalURL:(NSURL *)url;
-
-/**
- 登录
-
- @param viewController 控制器
- @param completion 完成回调
- */
-- (void)popLoginAlertViewInViewController:(UIViewController *)viewController;
++ (NSArray <NSURL *>*)subTitleFileWithLocalURL:(NSURL *)url;
 
 #pragma mark - 本地文件
 
@@ -107,9 +99,12 @@ typedef NS_ENUM(NSUInteger, PickerFileType) {
                            searchKey:(NSString *)key
                           completion:(GetFilesAction)completion;
 
+#if !DDPAPPTYPEISREVIEW
 #pragma mark - HTTPServer
 + (HTTPServer *)shareHTTPServer;
 + (void)resetHTTPServer;
+#endif
+
 
 #pragma mark - SMB
 /**
@@ -165,8 +160,9 @@ typedef NS_ENUM(NSUInteger, PickerFileType) {
 
 @property (strong, nonatomic) TOSMBSession *SMBSession;
 
-#pragma mark - PC端
 
+#if !DDPAPPTYPEISREVIEW
+#pragma mark - PC端
 /**
  获取PC文件
 
@@ -179,4 +175,5 @@ typedef NS_ENUM(NSUInteger, PickerFileType) {
 - (void)startDiscovererFileWithLinkParentFile:(DDPLinkFile *)parentFile
                                      linkInfo:(DDPLinkInfo *)linkInfo
                                    completion:(GetLinkFilesAction)completion;
+#endif
 @end

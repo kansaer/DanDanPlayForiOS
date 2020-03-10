@@ -27,6 +27,7 @@
 @interface DDPSMBFileViewController ()<UITableViewDelegate, UITableViewDataSource>
 @property (strong, nonatomic) DDPBaseTableView *tableView;
 @property (strong, nonatomic) DDPSMBFileOprationView *oprationView;
+@property (strong, nonatomic) UIImage *folderImg;
 @end
 
 @implementation DDPSMBFileViewController
@@ -39,8 +40,6 @@
     [super viewDidLoad];
     
     _group = dispatch_group_create();
-    
-    [self configRightItem];
     
     [self.tableView mas_makeConstraints:^(MASConstraintMaker *make) {
         make.top.left.right.mas_equalTo(0);
@@ -98,7 +97,7 @@
     cell.detailLabel.text = nil;
     cell.titleLabel.textColor = [UIColor blackColor];
     cell.detailLabel.textColor = [UIColor blackColor];
-    cell.iconImgView.image = [UIImage imageNamed:@"comment_local_file_folder"];
+    cell.iconImgView.image = self.folderImg;
     return cell;
 }
 
@@ -185,45 +184,17 @@
 #pragma mark - 私有方法
 - (void)startMatchWithHash:(NSString *)hash {
         
-    DDPSMBVideoModel *model = [[DDPSMBVideoModel alloc] initWithFileURL:_selectedFile.sessionFile.fullURL hash:hash length:_selectedFile.sessionFile.fileSize];
+    DDPSMBVideoModel *model = [[DDPSMBVideoModel alloc] initWithFileURL:_selectedFile.sessionFile.fullURL hash:hash length:(NSUInteger)_selectedFile.sessionFile.fileSize];
     model.file = _selectedFile;
     
-    void(^jumpToMatchVCAction)(void) = ^{
-        DDPMatchViewController *vc = [[DDPMatchViewController alloc] init];
-        vc.model = model;
-        vc.hidesBottomBarWhenPushed = YES;
-        [self.navigationController pushViewController:vc animated:YES];
-    };
-    
-    if ([DDPCacheManager shareCacheManager].openFastMatch) {
-        MBProgressHUD *aHUD = [MBProgressHUD defaultTypeHUDWithMode:MBProgressHUDModeAnnularDeterminate InView:self.view];
-        [DDPMatchNetManagerOperation fastMatchVideoModel:model progressHandler:^(float progress) {
-            aHUD.progress = progress;
-            aHUD.label.text = ddp_danmakusProgressToString(progress);
-        } completionHandler:^(DDPDanmakuCollection *responseObject, NSError *error) {
-            model.danmakus = responseObject;
-            [aHUD hideAnimated:NO];
-            
-            if (error) {
-                [self.view showWithError:error];
-            }
-            else {
-                if (responseObject == nil) {
-                    jumpToMatchVCAction();
-                }
-                else {
-                    DDPPlayNavigationController *nav = [[DDPPlayNavigationController alloc] initWithModel:model];
-                    [self presentViewController:nav animated:YES completion:nil];
-                }
-            }
-        }];
-    }
-    else {
-        jumpToMatchVCAction();
-    }
+    [self tryAnalyzeVideo:model];
 }
 
 - (void)configRightItem {
+    if (ddp_appType == DDPAppTypeReview) {
+        return;
+    }
+    
     UIBarButtonItem *item = [[UIBarButtonItem alloc] initWithTitle:nil configAction:^(UIButton *aButton) {
         [aButton addTarget:self action:@selector(touchRightItem:) forControlEvents:UIControlEventTouchUpInside];
         [aButton setTitle:@"下载" forState:UIControlStateNormal];
@@ -279,7 +250,7 @@
     aHUD.label.text = @"处理中...";
     NSString *downloadPath = ddp_taskDownloadPath();
     
-    dispatch_queue_t _queue = dispatch_queue_create("com.dandanplay.download", DISPATCH_QUEUE_PRIORITY_DEFAULT);
+    dispatch_queue_t _queue = dispatch_queue_create("com.dandanplay.download", DISPATCH_QUEUE_SERIAL);
     
     [arr enumerateObjectsUsingBlock:^(NSIndexPath * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
         DDPSMBFile *file = _file.subFiles[obj.row];
@@ -381,6 +352,13 @@
         [self.view addSubview:_oprationView];
     }
     return _oprationView;
+}
+
+- (UIImage *)folderImg {
+    if (_folderImg == nil) {
+        _folderImg = [[UIImage imageNamed:@"comment_local_file_folder"] renderByMainColor];
+    }
+    return _folderImg;
 }
 
 @end

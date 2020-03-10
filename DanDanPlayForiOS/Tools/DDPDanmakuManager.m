@@ -177,14 +177,7 @@ typedef void(^CallBackAction)(DDPDanmaku *model);
             tempDanmaku = [[JHFloatDanmaku alloc] initWithFont:font text:obj.message textColor:[UIColor colorWithRGB:obj.color] effectStyle:shadowStyle during:3 position:obj.mode == DDPDanmakuModeBottom ? JHFloatDanmakuPositionAtBottom : JHFloatDanmakuPositionAtTop];
         }
         else {
-            CGFloat speed = 130 - obj.message.length * 2.5;
-            
-            if (speed < 50) {
-                speed = 50;
-            }
-            
-            speed += arc4random() % 20;
-            tempDanmaku = [[JHScrollDanmaku alloc] initWithFont:font text:obj.message textColor:[UIColor colorWithRGB:obj.color] effectStyle:shadowStyle speed:speed direction:JHScrollDanmakuDirectionR2L];
+            tempDanmaku = [[JHScrollDanmaku alloc] initWithFont:font text:obj.message textColor:[UIColor colorWithRGB:obj.color] effectStyle:shadowStyle direction:JHScrollDanmakuDirectionR2L];
         }
         tempDanmaku.appearTime = obj.time;
         if (filter) {
@@ -213,20 +206,27 @@ typedef void(^CallBackAction)(DDPDanmaku *model);
 
 + (void)removeAllDanmakuCache {
     DDPDanmakuManager *manager = [DDPDanmakuManager shareDanmakuManager];
+    [manager.bilibiliDanmakuCache.memoryCache removeAllObjects];
     [manager.bilibiliDanmakuCache.diskCache removeAllObjects];
+    [manager.acfunDanmakuCache.memoryCache removeAllObjects];
     [manager.acfunDanmakuCache.diskCache removeAllObjects];
+    [manager.officialDanmakuCache.memoryCache removeAllObjects];
     [manager.officialDanmakuCache.diskCache removeAllObjects];
 }
 
 + (NSMutableDictionary <NSNumber *, NSMutableArray <JHBaseDanmaku *>*>*)parseLocalDanmakuWithSource:(DDPDanmakuType)source obj:(id)obj {
-    NSMutableArray *danmakus = [NSMutableArray array];
+    let danmakus = [self parseLocalDanmakuToArrayWithSource:source obj:obj];
+    return [self converDanmakus:danmakus filter:NO];
+}
+
++ (NSArray <DDPDanmaku *>*)parseLocalDanmakuToArrayWithSource:(DDPDanmakuType)source obj:(id)obj {
+    NSMutableArray <DDPDanmaku *>*danmakus = [NSMutableArray array];
     [self switchParseWithSource:source obj:obj block:^(DDPDanmaku *model) {
         [danmakus addObject:model];
     }];
     
-    return [self converDanmakus:danmakus filter:NO];
+    return danmakus;
 }
-
 
 #pragma mark - 私有方法
 + (void)switchParseWithSource:(DDPDanmakuType)source obj:(id)obj block:(CallBackAction)block {
@@ -298,6 +298,11 @@ typedef void(^CallBackAction)(DDPDanmaku *model);
 //过滤弹幕
 + (BOOL)filterWithDanmakuContent:(NSString *)content danmakuFilters:(NSArray <DDPFilter *>*)danmakuFilters {
     for (DDPFilter *filter in danmakuFilters) {
+        
+        if (filter.enable == false) {
+            continue;
+        }
+        
         //使用正则表达式
         if (filter.isRegex && filter.content.length > 0) {
             if ([content matchesRegex:filter.content options:NSRegularExpressionCaseInsensitive]) {
@@ -310,6 +315,7 @@ typedef void(^CallBackAction)(DDPDanmaku *model);
     }
     return NO;
 }
+
 
 #pragma mark - 懒加载
 - (YYCache *)bilibiliDanmakuCache {

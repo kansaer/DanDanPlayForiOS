@@ -19,6 +19,7 @@
 
 @interface DDPLinkFileManagerViewController ()<UITableViewDelegate, UITableViewDataSource, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate, DDPCacheManagerDelagate>
 @property (strong, nonatomic) DDPBaseTableView *tableView;
+@property (strong, nonatomic) UIImage *folderImg;
 @end
 
 @implementation DDPLinkFileManagerViewController
@@ -75,7 +76,7 @@
     DDPFileManagerFolderLongViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"DDPFileManagerFolderLongViewCell" forIndexPath:indexPath];
     cell.titleLabel.text = file.name;
     cell.detailLabel.text = [NSString stringWithFormat:@"%lu个视频", (unsigned long)file.subFiles.count];
-    cell.iconImgView.image = [UIImage imageNamed:@"comment_local_file_folder"];
+    cell.iconImgView.image = self.folderImg;
     return cell;
 }
 
@@ -95,34 +96,7 @@
     
     if (file.type == DDPFileTypeDocument) {
         DDPVideoModel *model = file.videoModel;
-        void(^jumpToMatchVCAction)(void) = ^{
-            DDPMatchViewController *vc = [[DDPMatchViewController alloc] init];
-            vc.model = model;
-            vc.hidesBottomBarWhenPushed = YES;
-            [self.navigationController pushViewController:vc animated:YES];
-        };
-        
-        if ([DDPCacheManager shareCacheManager].openFastMatch) {
-            MBProgressHUD *aHUD = [MBProgressHUD defaultTypeHUDWithMode:MBProgressHUDModeAnnularDeterminate InView:self.view];
-            [DDPMatchNetManagerOperation fastMatchVideoModel:model progressHandler:^(float progress) {
-                aHUD.progress = progress;
-                aHUD.label.text = ddp_danmakusProgressToString(progress);
-            } completionHandler:^(DDPDanmakuCollection *responseObject, NSError *error) {
-                model.danmakus = responseObject;
-                [aHUD hideAnimated:NO];
-                
-                if (responseObject == nil) {
-                    jumpToMatchVCAction();
-                }
-                else {
-                    DDPPlayNavigationController *nav = [[DDPPlayNavigationController alloc] initWithModel:model];
-                    [self presentViewController:nav animated:YES completion:nil];
-                }
-            }];
-        }
-        else {
-            jumpToMatchVCAction();
-        }
+        [self tryAnalyzeVideo:model];
     }
     else if (file.type == DDPFileTypeFolder) {
         DDPLinkFileManagerViewController *vc = [[DDPLinkFileManagerViewController alloc] init];
@@ -229,7 +203,7 @@
                 @strongify(self)
                 if (!self) return;
                 
-                DDPLinkInfo *info = [DDPCacheManager shareCacheManager].linkInfo ? [DDPCacheManager shareCacheManager].linkInfo : [DDPCacheManager shareCacheManager].lastLinkInfo;
+                DDPLinkInfo *info = [DDPCacheManager shareCacheManager].linkInfo ?: [DDPCacheManager shareCacheManager].lastLinkInfo;
                 
                 [[DDPToolsManager shareToolsManager] startDiscovererFileWithLinkParentFile:self.file linkInfo:info completion:^(DDPLinkFile *file, NSError *error) {
                     if (error) {
@@ -250,5 +224,11 @@
     return _tableView;
 }
 
+- (UIImage *)folderImg {
+    if (_folderImg == nil) {
+        _folderImg = [[UIImage imageNamed:@"comment_local_file_folder"] renderByMainColor];
+    }
+    return _folderImg;
+}
 
 @end

@@ -13,6 +13,8 @@
 #import "DDPHttpReceiveTableViewCell.h"
 #import <UITableView+FDTemplateLayoutCell.h>
 #import "DDPHttpReceive.h"
+#import "DDPTransparentNavigationBar.h"
+#import "DDPSharedNetManager.h"
 
 @interface DDPHTTPServerViewController ()<UITableViewDelegate, UITableViewDataSource, DDPBaseNetManagerObserver>
 @property (strong, nonatomic) UIImageView *wifiImgView;
@@ -29,7 +31,6 @@
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    [self setNavigationBarWithColor:[UIColor clearColor]];
     //屏幕常亮
     [[UIApplication sharedApplication] setIdleTimerDisabled:YES];
 }
@@ -69,14 +70,18 @@
     
     [self startHTTPServer];
     
-    [[DDPBaseNetManager shareNetManager] addObserver:self];
+    [[DDPSharedNetManager sharedNetManager] addObserver:self];
 
 }
 
 - (void)dealloc {
-    [[DDPBaseNetManager shareNetManager] removeObserver:self];
+    [[DDPSharedNetManager sharedNetManager] removeObserver:self];
     [[DDPToolsManager shareHTTPServer] stop];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (Class)ddp_navigationBarClass {
+    return [DDPTransparentNavigationBar class];
 }
 
 #pragma mark - DDPBaseNetManagerObserver
@@ -135,7 +140,7 @@
     NSError *error = nil;
     BOOL success = [[DDPToolsManager shareHTTPServer] start:&error];
     if(success == NO) {
-        NSLog(@"Error starting HTTP Server: %@", error);
+        LOG_ERROR(DDPLogModuleFile, @"Error starting HTTP Server: %@", error);
         [self showErrorUI];
     }
     else {

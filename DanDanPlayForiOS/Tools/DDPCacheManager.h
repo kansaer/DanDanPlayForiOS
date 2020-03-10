@@ -65,6 +65,11 @@ typedef NS_OPTIONS(NSUInteger, DDPDanmakuShieldType) {
     DDPDanmakuShieldTypeFloatAtBottom,
 };
 
+typedef NS_ENUM(NSUInteger, DDPFileSortType) {
+    DDPFileSortTypeAsc,
+    DDPFileSortTypeDesc,
+};
+
 //缓存所有弹幕的标识
 #define CACHE_ALL_DANMAKU_FLAG 9999
 
@@ -75,6 +80,8 @@ typedef NS_OPTIONS(NSUInteger, DDPDanmakuShieldType) {
 
 - (void)lastPlayTimeWithVideoModel:(DDPVideoModel *)videoModel time:(NSInteger)time;
 - (void)collectionDidHandleCache:(DDPCollectionCache *)cache operation:(DDPCollectionCacheDidChangeType)operation;
+- (void)userLoginStatusDidChange:(DDPUser *)user;
+- (void)linkInfoDidChange:(DDPLinkInfo *)linkInfo;
 @end
 
 @interface DDPCacheManager : NSObject
@@ -84,12 +91,7 @@ typedef NS_OPTIONS(NSUInteger, DDPDanmakuShieldType) {
 /**
  当前登录的用户
  */
-@property (strong, nonatomic) DDPUser *user;
-
-/**
- 上次登录的用户
- */
-@property (strong, nonatomic) DDPUser *lastLoginUser;
+@property (strong, nonatomic) DDPUser *currentUser;
 
 /**
  当前连接信息
@@ -128,7 +130,7 @@ typedef NS_OPTIONS(NSUInteger, DDPDanmakuShieldType) {
 @property (assign, nonatomic) BOOL openFastMatch;
 
 /**
- 是否自动下载远程设备字幕
+ 是否自动下载局域网设备字幕
  */
 @property (assign, nonatomic) BOOL openAutoDownloadSubtitle;
 
@@ -193,6 +195,12 @@ typedef NS_OPTIONS(NSUInteger, DDPDanmakuShieldType) {
  */
 @property (copy, nonatomic) NSString *userDefineRequestDomain;
 
+
+/**
+ 文件排序类型
+ */
+@property (assign, nonatomic) DDPFileSortType fileSortType;
+
 /**
  存储文件夹名称和文件hash
  */
@@ -206,6 +214,27 @@ typedef NS_OPTIONS(NSUInteger, DDPDanmakuShieldType) {
  刷新中显示的文字
  */
 @property (strong, nonatomic) NSMutableArray <NSString *>*refreshTexts;
+
+
+/**
+ 弹幕偏移时间 不进行本地保存
+ */
+@property (assign, nonatomic) CGFloat danmakuOffsetTime;
+
+/// 视频比例
+@property (assign, nonatomic) CGSize videoAspectRatio;
+
+/// 播放速率
+@property (assign, nonatomic) float playerSpeed;
+
+/// 上次忽略的版本
+@property (copy, nonatomic) NSString *ignoreVersion;
+
+/// 引导视图是否显示过
+@property (nonatomic, assign) BOOL guildViewIsShow;
+
+/// 自动加载本地弹幕
+@property (nonatomic, assign) BOOL loadLocalDanmaku;
 
 + (instancetype)shareCacheManager;
 @end

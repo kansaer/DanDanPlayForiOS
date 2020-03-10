@@ -8,8 +8,9 @@
 
 #import "DDPBase.h"
 
-@interface DDPBaseCollection : DDPBase
-@property (strong, nonatomic) NSMutableArray <__kindof DDPBase *>*collection;
+@interface DDPBaseCollection<T> : DDPBase
+/// __kindof DDPBase
+@property (strong, nonatomic) NSMutableArray <T>*collection;
 + (NSString *)collectionKey;
 + (Class)entityClass;
 @end

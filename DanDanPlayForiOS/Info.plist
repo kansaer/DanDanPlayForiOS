@@ -13,8 +13,10 @@
 			<array/>
 			<key>CFBundleTypeName</key>
 			<string>Video Files</string>
-			<key>Handler rank</key>
-			<string>Owner</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>public.audiovisual-content</string>
@@ -39,6 +41,10 @@
 			<array/>
 			<key>CFBundleTypeName</key>
 			<string>Audio Files</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>public.audio</string>
@@ -60,7 +66,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
-			<string>Owner</string>
+			<string>Default</string>
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>public.plain-text</string>
@@ -93,7 +99,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>3.6</string>
+	<string>3.9</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleURLTypes</key>
@@ -135,8 +141,10 @@
 			</array>
 		</dict>
 		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.dandanplay.player</string>
+			<string>com.dandanplay.iosplayer</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>dandanplay</string>
@@ -144,11 +152,13 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>2018080501</string>
+	<string>201907242</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
+		<string>wechat</string>
+		<string>weixin</string>
 		<string>sinaweibohd</string>
 		<string>sinaweibo</string>
 		<string>sinaweibosso</string>
@@ -193,8 +203,60 @@
 		<string>timopensdkdataline</string>
 		<string>wtlogintimV1</string>
 		<string>timapiV1</string>
+		<string>alipay</string>
+		<string>alipayshare</string>
+		<string>dingtalk</string>
+		<string>dingtalk-open</string>
+		<string>linkedin</string>
+		<string>linkedin-sdk2</string>
+		<string>linkedin-sdk</string>
+		<string>laiwangsso</string>
+		<string>yixin</string>
+		<string>yixinopenapi</string>
+		<string>instagram</string>
+		<string>whatsapp</string>
+		<string>line</string>
+		<string>fbapi</string>
+		<string>fb-messenger-api</string>
+		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
+		<string>kakaofa63a0b2356e923f3edd6512d531f546</string>
+		<string>kakaokompassauth</string>
+		<string>storykompassauth</string>
+		<string>kakaolink</string>
+		<string>kakaotalk-4.5.0</string>
+		<string>kakaostory-2.9.0</string>
+		<string>pinterestsdk.v1</string>
+		<string>tumblr</string>
+		<string>evernote</string>
+		<string>en</string>
+		<string>enx</string>
+		<string>evernotecid</string>
+		<string>evernotemsg</string>
+		<string>youdaonote</string>
+		<string>ynotedictfav</string>
+		<string>com.youdao.note.todayViewNote</string>
+		<string>ynotesharesdk</string>
+		<string>gplus</string>
+		<string>pocket</string>
+		<string>readitlater</string>
+		<string>pocket-oauth-v1</string>
+		<string>fb131450656879143</string>
+		<string>en-readitlater-5776</string>
+		<string>com.ideashower.ReadItLaterPro3</string>
+		<string>com.ideashower.ReadItLaterPro</string>
+		<string>com.ideashower.ReadItLaterProAlpha</string>
+		<string>com.ideashower.ReadItLaterProEnterprise</string>
+		<string>vk</string>
+		<string>vk-share</string>
+		<string>vkauthorize</string>
+		<string>twitter</string>
+		<string>twitterauth</string>
 	</array>
 	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
@@ -219,6 +281,27 @@
 	</array>
 	<key>UIRequiresFullScreen</key>
 	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UILaunchStoryboardName</key>
+					<string>LaunchScreen</string>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>UIStatusBarHidden</key>
 	<true/>
 	<key>UIStatusBarStyle</key>

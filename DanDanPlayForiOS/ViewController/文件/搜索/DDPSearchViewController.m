@@ -47,17 +47,16 @@
 }
 
 - (__kindof UIViewController * _Nonnull)pageController:(WMPageController * _Nonnull)pageController viewControllerAtIndex:(NSInteger)index {
-    if (index == 0) {
+//    if (index == 0) {
         let vc = [[DDPOfficialSearchViewController alloc] init];
         vc.keyword = _keyword;
         vc.model = _model;
         return vc;
-    }
-    
-    let vc = [[DDPBiliBiliSearchViewController alloc] init];
-    vc.keyword = _keyword;
-//    vc.model = _model;
-    return vc;
+//    }
+//
+//    let vc = [[DDPBiliBiliSearchViewController alloc] init];
+//    vc.keyword = _keyword;
+//    return vc;
 }
 
 - (NSString *)pageController:(WMPageController *)pageController titleAtIndex:(NSInteger)index {
@@ -93,9 +92,6 @@
         _searchBar.placeholder = @"试试手动♂搜索";
         _searchBar.text = self.keyword;
         _searchBar.returnKeyType = UIReturnKeySearch;
-        _searchBar.textField.font = [UIFont ddp_normalSizeFont];
-        _searchBar.tintColor = [UIColor ddp_mainColor];
-        _searchBar.backgroundColor = [UIColor clearColor];
     }
     return _searchBar;
 }

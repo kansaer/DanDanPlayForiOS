@@ -6,10 +6,11 @@
 //  Copyright © 2017年 JimHuang. All rights reserved.
 //
 
-#import <UIKit/UIKit.h>
+#import "DDPBaseTableViewCell.h"
 
 @class DDPLinkFile;
-@interface DDPAttentionDetailHistoryTableViewCell : UITableViewCell
+@interface DDPAttentionDetailHistoryTableViewCell : DDPBaseTableViewCell
 @property (strong, nonatomic) DDPEpisode *model;
 @property (copy, nonatomic) void(^touchPlayButtonCallBack)(DDPLinkFile *file);
+@property (copy, nonatomic) void(^touchTagButtonCallBack)(DDPLinkFile *file);
 @end

@@ -8,6 +8,11 @@
 
 #import "DDPFavoriteNetManagerOperation.h"
 #import <DanDanPlayEncrypt/DanDanPlayEncrypt.h>
+#import "DDPSharedNetManager.h"
+
+DDPFavoriteStatus DDPFavoriteStatusFavorited = @"favorited";
+DDPFavoriteStatus DDPFavoriteStatusFinished = @"finished";
+DDPFavoriteStatus DDPFavoriteStatusAbandoned = @"abandoned";
 
 @implementation DDPFavoriteNetManagerOperation
 
@@ -15,20 +20,21 @@
                                        animeId:(NSUInteger)animeId
                                           like:(BOOL)like
                              completionHandler:(void(^)(NSError *error))completionHandler {
-    if (user.identity == 0 || animeId == 0 || user.token.length == 0){
+    if (user.identity == 0 || animeId == 0 || user.legacyTokenNumber.length == 0){
         if (completionHandler) {
             completionHandler(DDPErrorWithCode(DDPErrorCodeParameterNoCompletion));
         }
         return nil;
     }
     
-    NSDictionary *dic = @{@"UserId" : @(user.identity), @"Token" : user.token, @"AnimeId" : @(animeId)};
+    NSDictionary *dic = @{@"UserId" : @(user.identity), @"Token" : user.legacyTokenNumber, @"AnimeId" : @(animeId)};
     
     if (like) {
         NSString *path = [NSString stringWithFormat:@"%@/favorite?clientId=%@", [DDPMethod apiPath], CLIENT_ID];
-        return [[DDPBaseNetManager shareNetManager] PUTWithPath:path
-                                                 serializerType:DDPBaseNetManagerSerializerRequestNoParse | DDPBaseNetManagerSerializerResponseParseToJSON
-                                                     parameters:ddplay_encryption(dic)
+        DDPBaseNetManagerSerializerType type = DDPBaseNetManagerSerializerRequestNoParse | DDPBaseNetManagerSerializerResponseParseToJSON;
+        
+        return [[DDPSharedNetManager sharedNetManager] PUTWithPath:path
+                                                 serializerType:type parameters:ddplay_encryption(dic)
                                               completionHandler:^(DDPResponse *responseObj) {
             if (completionHandler) {
                 completionHandler(responseObj.error);
@@ -37,7 +43,7 @@
     }
     
     NSString *path = [NSString stringWithFormat:@"%@/favorite?clientId=%@", [DDPMethod apiPath], CLIENT_ID];
-    return [[DDPBaseNetManager shareNetManager] DELETEWithPath:path
+    return [[DDPSharedNetManager sharedNetManager] DELETEWithPath:path
                                                 serializerType:DDPBaseNetManagerSerializerTypeJSON
                                                     parameters:dic
                                              completionHandler:^(DDPResponse *responseObj) {
@@ -49,7 +55,7 @@
 
 + (NSURLSessionDataTask *)favoriteAnimateWithUser:(DDPUser *)user
                                 completionHandler:(void(^)(DDPFavoriteCollection *responseObject, NSError *error))completionHandler {
-    if (user.identity == 0 || user.token.length == 0){
+    if (user.identity == 0 || user.legacyTokenNumber.length == 0){
         if (completionHandler) {
             completionHandler(nil, DDPErrorWithCode(DDPErrorCodeParameterNoCompletion));
         }
@@ -57,9 +63,9 @@
     }
     
     NSString *path = [NSString stringWithFormat:@"%@/favorite", [DDPMethod apiPath]];
-    NSDictionary *dic = @{@"userId" : @(user.identity), @"token" : user.token};
+    NSDictionary *dic = @{@"userId" : @(user.identity), @"token" : user.legacyTokenNumber};
     
-    return [[DDPBaseNetManager shareNetManager] GETWithPath:path
+    return [[DDPSharedNetManager sharedNetManager] GETWithPath:path
                                              serializerType:DDPBaseNetManagerSerializerTypeJSON
                                                  parameters:dic
                                           completionHandler:^(DDPResponse *responseObj) {
@@ -80,8 +86,9 @@
     }
     
     NSString *path = [NSString stringWithFormat:@"%@/playhistory/%lu", [DDPMethod apiPath], (unsigned long)animateId];
-    NSDictionary *dic = @{@"userId" : @(user.identity), @"token" : user.token.length ? user.token : @"0"};
-    return [[DDPBaseNetManager shareNetManager] GETWithPath:path
+    NSString *token = user.legacyTokenNumber.length ? user.legacyTokenNumber : @"0";
+    NSDictionary *dic = @{@"userId" : @(user.identity), @"token" : token};
+    return [[DDPSharedNetManager sharedNetManager] GETWithPath:path
                                              serializerType:DDPBaseNetManagerSerializerTypeJSON
                                                  parameters:dic
                                           completionHandler:^(DDPResponse *responseObj) {
@@ -91,27 +98,60 @@
     }];
 }
 
-+ (NSURLSessionDataTask *)favoriteAddHistoryWithUser:(DDPUser *)user
-                                           episodeId:(NSUInteger)episodeId addToFavorite:(BOOL)AddToFavorite
-                                   completionHandler:(void(^)(NSError *error))completionHandler {
-    if (user.identity == 0 || user.token.length == 0 || episodeId == 0){
++ (NSURLSessionDataTask *)addHistoryWithEpisodeIds:(NSArray <NSNumber *>*)episodeIds
+                                     addToFavorite:(BOOL)addToFavorite
+                                 completionHandler:(DDPErrorCompletionAction)completionHandler {
+    if (episodeIds.count == 0){
         if (completionHandler) {
             completionHandler(DDPErrorWithCode(DDPErrorCodeParameterNoCompletion));
         }
         return nil;
     }
     
-     NSString *path = [NSString stringWithFormat:@"%@/playhistory?clientId=%@", [DDPMethod apiPath], CLIENT_ID];
-    NSDictionary *dic = @{@"UserId" : @(user.identity), @"Token" : user.token, @"EpisodeId" : @(episodeId), @"AddToFavorite" : @(AddToFavorite)};
-    
-    return [[DDPBaseNetManager shareNetManager] PUTWithPath:path
-                                             serializerType:DDPBaseNetManagerSerializerRequestNoParse | DDPBaseNetManagerSerializerResponseParseToJSON
-                                                 parameters:ddplay_encryption(dic)
-                                          completionHandler:^(DDPResponse *responseObj) {
+    NSString *path = [NSString stringWithFormat:@"%@/playhistory", [DDPMethod apiNewPath]];
+    NSDictionary *dic = @{@"episodeIdList" : episodeIds, @"addToFavorite" : @(addToFavorite)};
+    return [[DDPSharedNetManager sharedNetManager] POSTWithPath:path serializerType:DDPBaseNetManagerSerializerTypeJSON parameters:dic completionHandler:^(__kindof DDPResponse *responseObj) {
         if (completionHandler) {
             completionHandler(responseObj.error);
         }
     }];
+}
+
++ (NSURLSessionDataTask *)changeFavoriteStatusWithAnimeId:(NSUInteger)animeId
+                                                     like:(BOOL)like
+                                        completionHandler:(DDPErrorCompletionAction)completionHandler {
+    if (animeId == 0){
+        if (completionHandler) {
+            completionHandler(DDPErrorWithCode(DDPErrorCodeParameterNoCompletion));
+        }
+        return nil;
+    }
+    
+    
+    if (like) {
+        NSDictionary *dic = @{@"animeId" : @(animeId), @"favoriteStatus" : DDPFavoriteStatusFavorited};
+        NSString *path = [NSString stringWithFormat:@"%@/favorite", [DDPMethod apiNewPath]];
+        return [[DDPSharedNetManager sharedNetManager] POSTWithPath:path
+                                                  serializerType:DDPBaseNetManagerSerializerTypeJSON
+                                                      parameters:dic
+                                               completionHandler:^(DDPResponse *responseObj) {
+                                                   if (completionHandler) {
+                                                       completionHandler(responseObj.error);
+                                                   }
+                                               }];
+    }
+    
+    NSString *path = [NSString stringWithFormat:@"%@/favorite/%lu", [DDPMethod apiNewPath], (unsigned long)animeId];
+    NSDictionary *dic = @{@"animeId" : @(animeId)};
+    return [[DDPSharedNetManager sharedNetManager] DELETEWithPath:path
+                                              serializerType:DDPBaseNetManagerSerializerTypeJSON
+                                                  parameters:dic
+                                           completionHandler:^(DDPResponse *responseObj) {
+                                               if (completionHandler) {
+                                                   completionHandler(responseObj.error);
+                                               }
+                                           }];
+    
 }
 
 @end

@@ -7,11 +7,14 @@
 //
 
 #import "DDPFileViewController.h"
-#import "DDPSMBViewController.h"
 #import "DDPHTTPServerViewController.h"
 #import "DDPFileManagerViewController.h"
 #import "DDPLinkFileManagerViewController.h"
 #import "DDPQRScannerViewController.h"
+
+#if !DDPAPPTYPEISMAC
+#import "DDPSMBViewController.h"
+#endif
 
 #import "DDPBaseTreeView.h"
 #import "DDPFileLargeTitleTableViewCell.h"
@@ -149,18 +152,21 @@
     if (indexPath.section == 0) {
         DDPFileTreeNode *item = self.dataSources[indexPath.section].subItems[indexPath.row];
         
-        if ([item.name isEqualToString:@"本机"]) {
+        if ([item.name isEqualToString:@"本机视频"]) {
             DDPFileManagerViewController *vc = [[DDPFileManagerViewController alloc] init];
             vc.hidesBottomBarWhenPushed = YES;
             vc.file = ddp_getANewRootFile();
             [self.navigationController pushViewController:vc animated:YES];
         }
-        else if ([item.name isEqualToString:@"远程设备"]) {
+        else if ([item.name isEqualToString:@"局域网设备"]) {
+#if !DDPAPPTYPEISMAC
             DDPSMBViewController *vc = [[DDPSMBViewController alloc] init];
             vc.hidesBottomBarWhenPushed = YES;
             [self.navigationController pushViewController:vc animated:YES];
+#endif
         }
         else if ([item.name isEqualToString:@"我的电脑"]) {
+#if !DDPAPPTYPE
             //已经登录
             if ([DDPCacheManager shareCacheManager].linkInfo) {
                 DDPLinkFileManagerViewController *vc = [[DDPLinkFileManagerViewController alloc] init];
@@ -189,6 +195,7 @@
                 };
                 [self.navigationController pushViewController:vc animated:YES];
             }
+#endif
         }
     }
     else {
@@ -257,27 +264,30 @@
             
             [node.subItems addObject:({
                 DDPFileTreeNode *node = [[DDPFileTreeNode alloc] init];
-                node.name = @"本机";
+                node.name = @"本机视频";
                 node.type = DDPFileTreeNodeTypeLocation;
                 node.img = [[UIImage imageNamed:@"file_phone"] yy_imageByTintColor:[UIColor darkGrayColor]];
                 node;
             })];
             
-            [node.subItems addObject:({
-                DDPFileTreeNode *node = [[DDPFileTreeNode alloc] init];
-                node.name = @"远程设备";
-                node.type = DDPFileTreeNodeTypeLocation;
-                node.img = [[UIImage imageNamed:@"file_net_equipment"] yy_imageByTintColor:[UIColor darkGrayColor]];
-                node;
-            })];
+            if (ddp_appType == DDPAppTypeDefault) {
+                [node.subItems addObject:({
+                    DDPFileTreeNode *node = [[DDPFileTreeNode alloc] init];
+                    node.name = @"局域网设备";
+                    node.type = DDPFileTreeNodeTypeLocation;
+                    node.img = [[UIImage imageNamed:@"file_net_equipment"] yy_imageByTintColor:[UIColor darkGrayColor]];
+                    node;
+                })];
+                
+                [node.subItems addObject:({
+                    DDPFileTreeNode *node = [[DDPFileTreeNode alloc] init];
+                    node.name = @"我的电脑";
+                    node.type = DDPFileTreeNodeTypeLocation;
+                    node.img = [[UIImage imageNamed:@"file_computer"] yy_imageByTintColor:[UIColor darkGrayColor]];
+                    node;
+                })];
+            }
             
-            [node.subItems addObject:({
-                DDPFileTreeNode *node = [[DDPFileTreeNode alloc] init];
-                node.name = @"我的电脑";
-                node.type = DDPFileTreeNodeTypeLocation;
-                node.img = [[UIImage imageNamed:@"file_computer"] yy_imageByTintColor:[UIColor darkGrayColor]];
-                node;
-            })];
             
             node;
         })];

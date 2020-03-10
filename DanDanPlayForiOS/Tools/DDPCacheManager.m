@@ -12,6 +12,9 @@
 #import <TOSMBSessionDownloadTaskPrivate.h>
 #import "DDPSMBFileHashCache.h"
 #import "DDPCacheManager+multiply.h"
+#import "DDPBaseNetManager.h"
+#import "DDPSharedNetManager.h"
+#import "DDPMediaPlayer.h"
 
 static NSString *const danmakuFiltersKey = @"danmaku_filters";
 static NSString *const danmakuFontIsSystemFontKey = @"danmaku_font_is_system_font";
@@ -20,17 +23,21 @@ static NSString *const collectionCacheKey = @"collection_cache";
 
 @interface DDPCacheManager ()<TOSMBSessionDownloadTaskDelegate>
 @property (strong, nonatomic) YYCache *cache;
+
 @property (strong, nonatomic) NSMutableDictionary <NSNumber *, YYWebImageManager *>*imageManagerDic;
 @property (strong, nonatomic) NSMutableArray <DDPFilter *>*aFilterCollection;
 @property (strong, nonatomic) NSTimer *timer;
 
 @property (strong, nonatomic) NSHashTable *observers;
+@property (strong, nonatomic) NSArray <NSString *>*dynamicChangeKeys;
 @end
 
 @implementation DDPCacheManager
 {
     //已经接收的大小
     NSUInteger _totalAlreadyReceive;
+    DDPUser *_currentUser;
+    CGSize _videoAspectRatio;
 }
 
 + (instancetype)shareCacheManager {
@@ -47,6 +54,8 @@ static NSString *const collectionCacheKey = @"collection_cache";
 - (YYCache *)cache {
     if (_cache == nil) {
         _cache = [[YYCache alloc] initWithName:@"dandanplay_cache"];
+        _cache.memoryCache.shouldRemoveAllObjectsOnMemoryWarning = false;
+        _cache.memoryCache.shouldRemoveAllObjectsWhenEnteringBackground = false;
     }
     return _cache;
 }
@@ -65,23 +74,23 @@ static NSString *const collectionCacheKey = @"collection_cache";
     return _observers;
 }
 
-
-#pragma mark -
-- (void)setUser:(DDPUser *)user {
-    [self.cache setObject:user forKey:[self keyWithSEL:_cmd]];
+- (DDPUser *)currentUser {
+    if (_currentUser == nil) {
+        _currentUser = [self _currentUser];
+    }
+    return _currentUser;
 }
 
-- (DDPUser *)user {
-    return (DDPUser *)[self.cache objectForKey:[self keyWithSEL:_cmd]];
-}
-
-#pragma mark - 
-- (void)setLastLoginUser:(DDPUser *)lastLoginUser {
-    [self.cache setObject:lastLoginUser forKey:[self keyWithSEL:_cmd]];
-}
-
-- (DDPUser *)lastLoginUser {
-    return (DDPUser *)[self.cache objectForKey:[self keyWithSEL:_cmd]];
+- (void)setCurrentUser:(DDPUser *)currentUser {
+    _currentUser = currentUser;
+    [[DDPSharedNetManager sharedNetManager] resetJWTToken:_currentUser.JWTToken];
+    [self _saveWithUser:_currentUser];
+    
+    for (id<DDPCacheManagerDelagate>obj in self.observers) {
+        if ([obj respondsToSelector:@selector(userLoginStatusDidChange:)]) {
+            [obj userLoginStatusDidChange:_currentUser];
+        }
+    }
 }
 
 #pragma mark - 
@@ -219,6 +228,17 @@ static NSString *const collectionCacheKey = @"collection_cache";
     return num.boolValue;
 }
 
+#pragma mark -
+
+- (void)setLinkInfo:(DDPLinkInfo *)linkInfo {
+    _linkInfo = linkInfo;
+    
+    for (id<DDPCacheManagerDelagate> obs in _observers) {
+        if ([obs respondsToSelector:@selector(linkInfoDidChange:)]) {
+            [obs linkInfoDidChange:_linkInfo];
+        }
+    }
+}
 
 
 #pragma mark -
@@ -267,6 +287,21 @@ static NSString *const collectionCacheKey = @"collection_cache";
 }
 
 #pragma mark -
+- (void)setFileSortType:(DDPFileSortType)fileSortType {
+    [self.cache setObject:@(fileSortType) forKey:[self keyWithSEL:_cmd]];
+}
+
+- (DDPFileSortType)fileSortType {
+    NSNumber *num = (NSNumber *)[self.cache objectForKey:[self keyWithSEL:_cmd]];
+    if (num == nil) {
+        num = @(DDPFileSortTypeAsc);
+        self.fileSortType = DDPFileSortTypeAsc;
+    }
+    
+    return num.integerValue;
+}
+
+#pragma mark -
 - (UIColor *)sendDanmakuColor {
     UIColor *color = (UIColor *)[self.cache objectForKey:[self keyWithSEL:_cmd]];
     if (color == nil) {
@@ -309,6 +344,56 @@ static NSString *const collectionCacheKey = @"collection_cache";
 - (void)setDanmakuLimitCount:(NSUInteger)danmakuLimitCount {
     [self.cache setObject:@(danmakuLimitCount) forKey:[self keyWithSEL:_cmd]];
 }
+
+#pragma mark -
+- (void)setVideoAspectRatio:(CGSize)videoAspectRatio {
+    _videoAspectRatio = videoAspectRatio;
+    self.mediaPlayer.videoAspectRatio = videoAspectRatio;
+}
+
+- (CGSize)videoAspectRatio {
+    return _videoAspectRatio;
+}
+
+#pragma mark -
+- (void)setPlayerSpeed:(float)playerSpeed {
+    [self.cache setObject:@(playerSpeed) forKey:[self keyWithSEL:_cmd]];
+    self.mediaPlayer.speed = playerSpeed;
+}
+
+- (float)playerSpeed {
+    NSNumber *num = (NSNumber *)[self.cache objectForKey:[self keyWithSEL:_cmd]];
+    if (num == nil) {
+        num = @(1.0f);
+        self.playerSpeed = 1.0f;
+    }
+    
+    return num.floatValue;
+}
+
+#pragma mark -
+- (void)setGuildViewIsShow:(BOOL)guildViewIsShow {
+    [[NSUserDefaults standardUserDefaults] setBool:guildViewIsShow forKey:[self keyWithSEL:_cmd]];
+}
+
+- (BOOL)guildViewIsShow {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:[self keyWithSEL:_cmd]];
+}
+
+- (void)setLoadLocalDanmaku:(BOOL)loadLocalDanmaku {
+    [self.cache setObject:@(loadLocalDanmaku) forKey:[self keyWithSEL:_cmd]];
+}
+
+- (BOOL)loadLocalDanmaku {
+    NSNumber *num = (NSNumber *)[self.cache objectForKey:[self keyWithSEL:_cmd]];
+    if (num == nil) {
+        num = @(YES);
+        self.loadLocalDanmaku = YES;
+    }
+    
+    return num.boolValue;
+}
+
 
 #pragma mark -
 - (void)setPlayInterfaceOrientation:(UIInterfaceOrientation)playInterfaceOrientation {
@@ -378,6 +463,16 @@ static NSString *const collectionCacheKey = @"collection_cache";
     return _refreshTexts;
 }
 
+#pragma mark -
+- (void)setIgnoreVersion:(NSString *)ignoreVersion {
+    [self.cache setObject:ignoreVersion forKey:[self keyWithSEL:_cmd]];
+}
+
+- (NSString *)ignoreVersion {
+    NSString *version = (NSString *)[self.cache objectForKey:[self keyWithSEL:_cmd]];
+    return version;
+}
+
 #pragma mark - 私有方法
 - (NSString *)keyWithSEL:(SEL)aSEL {
     if (aSEL == nil) return nil;
@@ -390,6 +485,25 @@ static NSString *const collectionCacheKey = @"collection_cache";
         return tempStr;
     }
     return NSStringFromSelector(aSEL);
+}
+
+#pragma mark - 懒加载
+- (NSArray<NSString *> *)dynamicChangeKeys {
+    if (_dynamicChangeKeys == nil) {
+        
+        _dynamicChangeKeys = @[DDP_KEYPATH(self, danmakuFont),
+                               DDP_KEYPATH(self, danmakuSpeed),
+                               DDP_KEYPATH(self, danmakuEffectStyle),
+                               DDP_KEYPATH(self, danmakuOpacity),
+                               DDP_KEYPATH(self, danmakuLimitCount),
+                               DDP_KEYPATH(self, danmakuShieldType),
+                               DDP_KEYPATH(self, danmakuOffsetTime),
+                               DDP_KEYPATH(self, playerSpeed),
+                               DDP_KEYPATH(self, subtitleProtectArea)];
+        
+        
+    }
+    return _dynamicChangeKeys;
 }
 
 @end

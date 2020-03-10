@@ -10,7 +10,22 @@
 
 @implementation DDPSearchBar
 - (UITextField *)textField {
-    return [self valueForKey:@"_searchField"];
+    if (@available(iOS 13.0, *)) {
+        return self.searchTextField;
+    } else {
+        return [self valueForKey:@"_searchField"];
+    }
+}
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.backgroundImage = [[UIImage alloc] init];
+        self.tintColor = [UIColor ddp_mainColor];
+        self.textField.backgroundColor = [UIColor whiteColor];
+        self.textField.font = [UIFont ddp_normalSizeFont];
+    }
+    return self;
 }
 
 @end

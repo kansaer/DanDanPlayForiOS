@@ -14,9 +14,11 @@
 #import "DDPFileManagerFolderLongViewCell.h"
 #import "DDPFileManagerFileLongViewCell.h"
 #import <UITableView+FDTemplateLayoutCell.h>
+#import "UIImage+Tools.h"
 
 @interface DDPFileManagerPlayerListView ()<UITableViewDelegate, UITableViewDataSource, DZNEmptyDataSetSource>
 @property (strong, nonatomic) DDPBaseTableView *tableView;
+@property (strong, nonatomic) UIImage *folderImg;
 @end
 
 @implementation DDPFileManagerPlayerListView
@@ -29,6 +31,7 @@
         
         self.currentFile = [DDPCacheManager shareCacheManager].currentPlayVideoModel.file.parentFile;
         
+         [self addSubview:self.tableView];
         [self.tableView mas_makeConstraints:^(MASConstraintMaker *make) {
             make.edges.mas_equalTo(0);
         }];
@@ -173,7 +176,7 @@
     
     cell.titleLabel.textColor = [UIColor whiteColor];
     cell.detailLabel.textColor = [UIColor whiteColor];
-    cell.iconImgView.image = [UIImage imageNamed:@"comment_local_file_folder"];
+    cell.iconImgView.image = self.folderImg;
     return cell;
 }
 
@@ -339,11 +342,15 @@
 //                }
             }];
         }
-        
-        
-        [self addSubview:_tableView];
     }
     return _tableView;
+}
+
+- (UIImage *)folderImg {
+    if (_folderImg == nil) {
+        _folderImg = [[UIImage imageNamed:@"comment_local_file_folder"] renderByMainColor];
+    }
+    return _folderImg;
 }
 
 @end

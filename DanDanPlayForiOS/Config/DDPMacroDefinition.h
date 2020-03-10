@@ -7,17 +7,15 @@
 //
 
 #import "APPKey.h"
-#import <CocoaLumberjack.h>
+#import "LogUtil.h"
 
 #ifndef DDPMacroDefinition_h
 #define DDPMacroDefinition_h
 
-static const int ddLogLevel = DDLogLevelVerbose;
-
 #ifdef DEBUG
-#define JHLog(format, ...) DDLogDebug(format, __VA_ARGS__)
+
 #else
-#define JHLog(format, ...)
+#define NSLog(format, ...)
 #endif
 
 #if defined(__cplusplus)
@@ -51,7 +49,7 @@ typedef struct __attribute__((objc_boxable)) _NSRange NSRange;
 #define LINK_API_INDEX @"api/v1"
 
 //动漫花园解析url
-#define API_DMHY_DOMAIN @"https://res.chinacloudsites.cn"
+#define API_DMHY_DOMAIN @"http://res.acplay.net"
 
 //屏幕宽高
 #define DDP_WIDTH [UIScreen mainScreen].bounds.size.width
@@ -91,5 +89,16 @@ typedef struct __attribute__((objc_boxable)) _NSRange NSRange;
 //系统最低支持版本
 #define MINI_SUPPORT_VERTSION @"9.0"
 
+//弹弹官网
+#define DDPLAY_OFFICIAL_SITE @"http://www.dandanplay.com"
+
+#if DDPAPPTYPE == 2
+#define DDPAPPTYPEISMAC 1
+
+#elif DDPAPPTYPE == 1
+#define DDPAPPTYPEISREVIEW 1
+#elif DDPAPPTYPE == 0
+#define DDPAPPTYPEIOS 1
+#endif
 
 #endif /* DDPMacroDefinition_h */

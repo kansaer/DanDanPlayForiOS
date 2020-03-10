@@ -21,6 +21,10 @@
 #import "DDPBaseTableView.h"
 #import "LAContext+Tools.h"
 
+#if DDPAPPTYPEISMAC
+#import "DDPPlayerConfigPanelViewController.h"
+#endif
+
 @interface DDPSettingViewController ()<UITableViewDelegate, UITableViewDataSource>
 @property (strong, nonatomic) DDPBaseTableView *tableView;
 @property (strong, nonatomic) NSArray <DDPSetting *>*dataSources;
@@ -74,7 +78,7 @@
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     DDPSettingItem *item = self.dataSources[indexPath.section].items[indexPath.row];
     if (item.reuseClass == [DDPOtherSettingSwitchTableViewCell class]) {
-        return 55;
+        return 70;
     }
     return 44;
 }
@@ -157,9 +161,35 @@
 
 - (NSArray<DDPSetting *> *)dataSources {
     if (_dataSources == nil) {
+        NSMutableArray <DDPSetting *>*arr = [NSMutableArray arrayWithCapacity:3];
+        
         @weakify(self)
+        #if DDPAPPTYPEISMAC
+        DDPSetting *playerSetting = [[DDPSetting alloc] init];
+        playerSetting.title = @"播放设置";
+        [playerSetting.items addObject:^{
+            DDPSettingItem *item = [[DDPSettingItem alloc] initWithReuseClass:[DDPSettingTitleTableViewCell class]];
+            item.dequeueReuseCellCallBack = ^(DDPOtherSettingTitleSubtitleTableViewCell *cell) {
+                cell.titleLabel.text = @"播放器设置";
+            };
+            
+            item.didSelectedCellCallBack = ^(NSIndexPath *indexPath) {
+                @strongify(self)
+                if (!self) return;
+                
+                let vc = [[DDPPlayerConfigPanelViewController alloc] init];
+                [self.navigationController pushViewController:vc animated:YES];
+            };
+            
+            return item;
+        }()];
+        
+        [arr addObject:playerSetting];
+        #endif
+        
         //弹幕设置
         DDPSetting *danmakuSetting = [[DDPSetting alloc] init];
+        [arr addObject:danmakuSetting];
         danmakuSetting.title = @"弹幕设置";
         [danmakuSetting.items addObject:^{
             DDPSettingItem *item = [[DDPSettingItem alloc] initWithReuseClass:[DDPSettingTitleTableViewCell class]];
@@ -207,6 +237,7 @@
             return item;
         }()];
         
+#if !DDPAPPTYPEISREVIEW
         [danmakuSetting.items addObject:^{
             DDPSettingItem *item = [[DDPSettingItem alloc] initWithReuseClass:[DDPOtherSettingSwitchTableViewCell class]];
             item.dequeueReuseCellCallBack = ^(DDPOtherSettingSwitchTableViewCell *cell) {
@@ -232,6 +263,7 @@
             };
             return item;
         }()];
+#endif
         
         [danmakuSetting.items addObject:^{
             DDPSettingItem *item = [[DDPSettingItem alloc] initWithReuseClass:[DDPOtherSettingTitleSubtitleTableViewCell class]];
@@ -285,6 +317,7 @@
         
         //其他设置
         DDPSetting *otherSetting = [[DDPSetting alloc] init];
+        [arr addObject:otherSetting];
         otherSetting.title = @"其他设置";
         
         [otherSetting.items addObject:^{
@@ -303,7 +336,21 @@
         [otherSetting.items addObject:^{
             DDPSettingItem *item = [[DDPSettingItem alloc] initWithReuseClass:[DDPOtherSettingSwitchTableViewCell class]];
             item.dequeueReuseCellCallBack = ^(DDPOtherSettingSwitchTableViewCell *cell) {
-                cell.titleLabel.text = @"自动加载远程设备字幕";
+                cell.titleLabel.text = @"自动加载同名弹幕";
+                cell.detailLabel.text = @"目前支持 XML 格式弹幕";
+                cell.aSwitch.on = [DDPCacheManager shareCacheManager].loadLocalDanmaku;
+                cell.touchSwitchCallBack = ^(UISwitch *aSwitch) {
+                    [DDPCacheManager shareCacheManager].loadLocalDanmaku = ![DDPCacheManager shareCacheManager].loadLocalDanmaku;
+                };
+            };
+            return item;
+        }()];
+
+#if DDPAPPTYPEIOS
+        [otherSetting.items addObject:^{
+            DDPSettingItem *item = [[DDPSettingItem alloc] initWithReuseClass:[DDPOtherSettingSwitchTableViewCell class]];
+            item.dequeueReuseCellCallBack = ^(DDPOtherSettingSwitchTableViewCell *cell) {
+                cell.titleLabel.text = @"自动加载局域网设备字幕";
                 cell.detailLabel.text = @"大概没人会关掉";
                 cell.aSwitch.on = [DDPCacheManager shareCacheManager].openAutoDownloadSubtitle;
                 cell.touchSwitchCallBack = ^(UISwitch *aSwitch) {
@@ -312,6 +359,7 @@
             };
             return item;
         }()];
+#endif
         
         LAContext *laContext = [[LAContext alloc] init];
         //验证touchID是否可用
@@ -375,7 +423,7 @@
                 @strongify(self)
                 if (!self) return;
                 
-                cell.titleLabel.text = @"清理缓存";
+                cell.titleLabel.text = @"清理弹幕、图片缓存";
                 cell.detailLabel.text = self->_cacheSize;
             };
             
@@ -403,7 +451,7 @@
             return item;
         }()];
         
-        _dataSources = @[danmakuSetting, otherSetting];
+        _dataSources = arr;
     }
     return _dataSources;
 }

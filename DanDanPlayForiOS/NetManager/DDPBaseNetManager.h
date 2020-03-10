@@ -11,7 +11,6 @@
 #import "YYReachability.h"
 #import "DDPNetManagerDefine.h"
 
-
 @protocol DDPBaseNetManagerObserver<NSObject>
 @optional
 - (void)netStatusChange:(YYReachability *)reachability;
@@ -19,8 +18,12 @@
 
 @interface DDPBaseNetManager : NSObject
 
+/**
+ 设置JWTToken
 
-+ (instancetype)shareNetManager;
+ @param token JWTToken
+ */
+//- (void)resetJWTToken:(NSString *)token;
 
 /**
  *  GET封装
@@ -53,6 +56,7 @@
  POST封装
 
  @param path 路径
+ @param serializerType 序列化类型
  @param parameters 参数
  @param completionHandler 完成回调
  @return 任务
@@ -61,6 +65,7 @@
                         serializerType:(DDPBaseNetManagerSerializerType)serializerType
                             parameters:(id)parameters
                      completionHandler:(DDPResponseCompletionAction)completionHandler;
+
 /**
  *  DELETE封装
  *
@@ -74,6 +79,19 @@
                           serializerType:(DDPBaseNetManagerSerializerType)serializerType
                              parameters:(id)parameters
                     completionHandler:(DDPResponseCompletionAction)completionHandler;
+
+#if DDPAPPTYPEISMAC
+
+/// 下载封装
+/// @param path 路径
+/// @param downloadProgressBlock 进度回调
+/// @param destination 写入路径回调
+/// @param completionHandler 完成回调
+- (NSURLSessionDownloadTask *)downloadTaskWithPath:(NSString *)path
+                                          progress:(void (^)(NSProgress *downloadProgress))downloadProgressBlock
+                                       destination:(NSURL *(^)(NSURL *targetPath, NSURLResponse *response))destination
+                                 completionHandler:(void (^)(NSURLResponse *response, NSURL *filePath, NSError *error))completionHandler;
+#endif
 
 /**
  *  批量GET任务

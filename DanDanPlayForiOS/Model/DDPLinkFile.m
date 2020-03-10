@@ -8,10 +8,16 @@
 
 #import "DDPLinkFile.h"
 
+#if !DDPAPPTYPEISMAC
+#import "DDPLinkVideoModel.h"
+#endif
+
 @implementation DDPLinkFile
+#if !DDPAPPTYPEISMAC
 {
     DDPLinkVideoModel *_videoModel;
 }
+#endif
 
 - (instancetype)initWithLibraryFile:(DDPLibrary *)file {
     if (self = [super initWithFileURL:nil type:file.fileType]) {
@@ -29,15 +35,19 @@
         return [NSURL URLWithString:[_library.path stringByURLEncode]];
     }
     
-    return [NSURL URLWithString:[NSString stringWithFormat:@"%@/%@/stream/%@", [DDPCacheManager shareCacheManager].linkInfo.selectedIpAdress, LINK_API_INDEX, _library.md5]];
+    return ddp_linkVideoURL([DDPCacheManager shareCacheManager].linkInfo.selectedIpAdress, _library.playId);
 }
 
 - (DDPVideoModel *)videoModel {
+#if !DDPAPPTYPEISMAC
     if (_videoModel == nil) {
         _videoModel = [[DDPLinkVideoModel alloc] initWithName:self.name fileURL:self.fileURL hash:_library.md5 length:_library.size];
         _videoModel.file = self;
     }
     return _videoModel;
+#else
+    return nil;
+#endif
 }
 
 @end
